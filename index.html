@@ -1,0 +1,1792 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CASHLESS COLOMBIA · Housekeeping Control</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2300e5ff'/%3E%3Cstop offset='.5' stop-color='%237c3aed'/%3E%3Cstop offset='1' stop-color='%23ec4899'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='22' fill='%23070b18'/%3E%3Ctext x='50' y='68' font-size='58' font-family='Arial' font-weight='900' fill='url(%23g)' text-anchor='middle'%3ECC%3C/text%3E%3C/svg%3E">
+<!-- PWA: instalación como aplicación -->
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="theme-color" content="#070b18">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CC Housekeeping">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* ==================== CONFIG / DESIGN TOKENS ==================== */
+:root{
+  --bg:#070b18; --bg2:#0c1226; --panel:rgba(255,255,255,.055); --panel-b:rgba(255,255,255,.10);
+  --blue:#2563ff; --blue2:#1746c9; --cyan:#00e5ff; --violet:#7c3aed; --magenta:#ec4899;
+  --white:#f5f7ff; --muted:#9aa3c0; --green:#22c55e; --yellow:#eab308; --red:#ef4444;
+  --grad: linear-gradient(135deg,var(--cyan),var(--violet) 55%,var(--magenta));
+  --grad-soft: linear-gradient(135deg,rgba(0,229,255,.18),rgba(124,58,237,.18) 55%,rgba(236,72,153,.18));
+  --radius:16px; --radius-sm:10px;
+  box-sizing:border-box;
+}
+*{box-sizing:inherit;margin:0;padding:0;}
+html,body{height:100%;}
+body{
+  font-family:'Segoe UI',system-ui,-apple-system,Roboto,Arial,sans-serif;
+  background:
+    radial-gradient(1200px 700px at 85% -10%, rgba(124,58,237,.25), transparent 60%),
+    radial-gradient(1000px 600px at -10% 10%, rgba(0,229,255,.14), transparent 60%),
+    var(--bg);
+  color:var(--white); min-height:100%; overflow-x:hidden;
+}
+img{max-width:100%;}
+a{color:inherit;}
+button{font-family:inherit;cursor:pointer;}
+::-webkit-scrollbar{width:8px;height:8px;}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:8px;}
+.hidden{display:none !important;}
+
+/* logo */
+.logo{display:flex;align-items:center;gap:10px;font-weight:900;letter-spacing:.5px;}
+.logo-badge{
+  width:38px;height:38px;border-radius:10px;background:var(--grad);
+  display:flex;align-items:center;justify-content:center;color:#050414;font-size:16px;font-weight:900;
+  box-shadow:0 0 18px rgba(124,58,237,.55);
+}
+.logo-text{line-height:1.05;}
+.logo-text b{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;font-size:15px;}
+.logo-text span{display:block;font-size:9px;color:var(--muted);letter-spacing:2px;}
+
+/* buttons */
+.btn{border:none;border-radius:var(--radius-sm);padding:12px 18px;font-weight:700;font-size:14px;color:#fff;
+  background:var(--panel);border:1px solid var(--panel-b);transition:.15s;display:inline-flex;align-items:center;gap:8px;justify-content:center;}
+.btn:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.28);}
+.btn-primary{background:var(--grad);color:#04030a;box-shadow:0 6px 22px rgba(124,58,237,.35);}
+.btn-primary:hover{filter:brightness(1.08);}
+.btn-danger{background:linear-gradient(135deg,#ef4444,#b91c1c);}
+.btn-ghost{background:transparent;border:1px solid var(--panel-b);}
+.btn-lg{padding:18px 22px;font-size:16px;border-radius:14px;width:100%;}
+.btn-sm{padding:6px 10px;font-size:12px;}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+
+/* card/glass */
+.card{background:var(--panel);border:1px solid var(--panel-b);border-radius:var(--radius);
+  backdrop-filter:blur(14px);padding:18px;}
+.glow{box-shadow:0 0 0 1px rgba(255,255,255,.04),0 10px 40px rgba(0,0,0,.35);}
+
+/* inputs */
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:600;letter-spacing:.3px;}
+.field input,.field select,.field textarea{
+  width:100%;padding:11px 13px;border-radius:10px;border:1px solid var(--panel-b);
+  background:rgba(255,255,255,.04);color:var(--white);font-size:14px;outline:none;transition:.15s;
+}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(0,229,255,.15);}
+.field textarea{resize:vertical;min-height:70px;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 14px;}
+@media(max-width:520px){.grid2{grid-template-columns:1fr;}}
+
+/* badges */
+.badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:800;letter-spacing:.3px;}
+.b-green{background:rgba(34,197,94,.15);color:#4ade80;border:1px solid rgba(34,197,94,.35);}
+.b-yellow{background:rgba(234,179,8,.15);color:#facc15;border:1px solid rgba(234,179,8,.35);}
+.b-red{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.35);}
+.b-blue{background:rgba(37,99,255,.18);color:#7ea2ff;border:1px solid rgba(37,99,255,.35);}
+.b-violet{background:rgba(124,58,237,.18);color:#c4b5fd;border:1px solid rgba(124,58,237,.35);}
+.b-gray{background:rgba(255,255,255,.08);color:var(--muted);border:1px solid var(--panel-b);}
+
+/* ============ LOGIN ============ */
+#loginScreen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+.login-box{width:100%;max-width:400px;text-align:center;}
+.login-box .logo{justify-content:center;margin-bottom:18px;}
+.login-box .logo-badge{width:60px;height:60px;font-size:24px;border-radius:16px;}
+.login-box .logo-text b{font-size:22px;}
+.login-title{font-size:14px;color:var(--muted);letter-spacing:2px;margin-bottom:26px;text-transform:uppercase;}
+.login-card{padding:28px 26px;text-align:left;}
+.demo-hint{margin-top:16px;font-size:11px;color:var(--muted);line-height:1.7;background:rgba(255,255,255,.04);
+  padding:10px 12px;border-radius:10px;border:1px solid var(--panel-b);}
+.login-err{color:#f87171;font-size:12px;margin-top:8px;min-height:14px;}
+
+/* ============ APP SHELL ============ */
+#appShell{display:none;min-height:100vh;}
+.shell-row{display:flex;min-height:100vh;}
+.sidebar{width:250px;flex:0 0 250px;background:linear-gradient(180deg,rgba(12,18,38,.9),rgba(7,11,24,.95));
+  border-right:1px solid var(--panel-b);padding:20px 14px;display:flex;flex-direction:column;gap:6px;position:sticky;top:0;height:100vh;overflow-y:auto;}
+.sidebar .logo{padding:6px 8px 18px;}
+.navitem{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;color:var(--muted);
+  font-size:13.5px;font-weight:600;cursor:pointer;transition:.15s;}
+.navitem:hover{background:rgba(255,255,255,.05);color:var(--white);}
+.navitem.active{background:var(--grad-soft);color:#fff;border:1px solid rgba(124,58,237,.4);}
+.navitem .ic{width:18px;text-align:center;}
+.sidebar-foot{margin-top:auto;padding:12px 8px;border-top:1px solid var(--panel-b);}
+.userchip{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted);margin-bottom:10px;}
+.userchip b{color:var(--white);display:block;font-size:13px;}
+
+.main{flex:1;min-width:0;padding:22px 26px 60px;}
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;}
+.topbar h1{font-size:21px;font-weight:800;}
+.topbar .sub{color:var(--muted);font-size:12.5px;margin-top:2px;}
+
+/* mobile nav for admin */
+.mobile-topbar{display:none;}
+@media(max-width:880px){
+  .sidebar{position:fixed;left:0;top:0;bottom:0;z-index:60;transform:translateX(-105%);transition:.2s;box-shadow:0 0 40px rgba(0,0,0,.5);}
+  .sidebar.open{transform:translateX(0);}
+  .main{padding:16px 14px 80px;}
+  .mobile-topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .overlay-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:55;}
+  .overlay-bg.show{display:block;}
+}
+
+/* dashboard cards */
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:14px;margin-bottom:20px;}
+.stat-card{padding:16px;position:relative;overflow:hidden;}
+.stat-card .val{font-size:26px;font-weight:900;margin-top:6px;}
+.stat-card .lab{font-size:11px;color:var(--muted);letter-spacing:.4px;text-transform:uppercase;font-weight:700;}
+.stat-card .accent{position:absolute;top:0;right:0;width:70px;height:70px;background:var(--grad);opacity:.14;
+  border-radius:0 0 0 70px;}
+
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
+@media(max-width:880px){.charts-grid{grid-template-columns:1fr;}}
+.chart-card canvas{max-height:230px;}
+.chart-card h3{font-size:13px;margin-bottom:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;}
+
+/* tables */
+.table-wrap{overflow-x:auto;border-radius:var(--radius);border:1px solid var(--panel-b);}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:700px;}
+thead th{text-align:left;padding:11px 12px;background:rgba(255,255,255,.04);color:var(--muted);
+  font-size:11px;text-transform:uppercase;letter-spacing:.4px;position:sticky;top:0;white-space:nowrap;}
+tbody td{padding:10px 12px;border-top:1px solid rgba(255,255,255,.06);white-space:nowrap;}
+tbody tr{cursor:pointer;transition:.1s;}
+tbody tr:hover{background:rgba(255,255,255,.04);}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center;}
+.toolbar input,.toolbar select{padding:9px 12px;border-radius:9px;border:1px solid var(--panel-b);
+  background:rgba(255,255,255,.04);color:#fff;font-size:12.5px;}
+.section-title{font-size:16px;font-weight:800;margin:22px 0 12px;display:flex;align-items:center;gap:8px;}
+.thumb{width:44px;height:44px;border-radius:8px;object-fit:cover;border:1px solid var(--panel-b);}
+
+/* modal */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(2,4,12,.65);backdrop-filter:blur(3px);
+  z-index:200;align-items:center;justify-content:center;padding:16px;}
+.modal-bg.show{display:flex;}
+.modal{background:linear-gradient(180deg,#0f1530,#0a0e20);border:1px solid var(--panel-b);border-radius:18px;
+  width:100%;max-width:560px;max-height:88vh;overflow-y:auto;padding:22px;position:relative;}
+.modal.wide{max-width:760px;}
+.modal-close{position:absolute;top:14px;right:14px;background:rgba(255,255,255,.06);border:none;color:#fff;
+  width:30px;height:30px;border-radius:8px;font-size:16px;}
+.modal h2{font-size:17px;margin-bottom:16px;padding-right:30px;}
+.kv{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px dashed rgba(255,255,255,.08);font-size:13px;}
+.kv b{color:var(--muted);font-weight:600;}
+.divider{height:1px;background:rgba(255,255,255,.08);margin:14px 0;}
+
+/* toast */
+#toastWrap{position:fixed;bottom:18px;right:18px;z-index:400;display:flex;flex-direction:column;gap:8px;}
+.toast{background:#12172f;border:1px solid var(--panel-b);padding:12px 16px;border-radius:10px;font-size:13px;
+  box-shadow:0 10px 30px rgba(0,0,0,.4);animation:slideIn .2s ease;min-width:220px;}
+.toast.ok{border-left:4px solid var(--green);}
+.toast.err{border-left:4px solid var(--red);}
+.toast.warn{border-left:4px solid var(--yellow);}
+@keyframes slideIn{from{opacity:0;transform:translateX(20px);}to{opacity:1;transform:translateX(0);}}
+
+/* ============ EMPLOYEE PANEL ============ */
+#employeeScreen{max-width:480px;margin:0 auto;padding:16px 14px 90px;min-height:100vh;}
+.emp-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+.emp-hello{margin:16px 0 4px;font-size:20px;font-weight:800;}
+.emp-shift{color:var(--muted);font-size:12.5px;margin-bottom:16px;}
+.status-card{padding:22px;text-align:center;margin-bottom:16px;position:relative;overflow:hidden;}
+.status-room{font-size:13px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;}
+.status-room b{display:block;color:#fff;font-size:34px;margin-top:2px;}
+.timer-display{font-size:44px;font-weight:900;letter-spacing:2px;margin:14px 0 6px;font-variant-numeric:tabular-nums;}
+.timer-sub{font-size:12.5px;color:var(--muted);margin-bottom:14px;}
+.progress-outer{height:10px;border-radius:6px;background:rgba(255,255,255,.08);overflow:hidden;margin:10px 0;}
+.progress-inner{height:100%;background:var(--grad);transition:.3s;}
+.scan-empty{text-align:center;padding:36px 18px;color:var(--muted);font-size:13.5px;line-height:1.6;}
+.scan-empty .ic{font-size:40px;margin-bottom:10px;}
+.scan-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;}
+.qr-video-wrap{position:relative;border-radius:14px;overflow:hidden;background:#000;margin-bottom:12px;}
+.qr-video-wrap video{width:100%;display:block;max-height:320px;object-fit:cover;}
+.qr-frame{position:absolute;inset:15%;border:3px solid var(--cyan);border-radius:14px;box-shadow:0 0 0 999px rgba(0,0,0,.35);}
+.emp-actions{display:flex;flex-direction:column;gap:10px;margin-top:16px;}
+.emp-history-item{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:12.5px;}
+
+/* photo preview */
+.photo-preview{width:100%;max-height:200px;object-fit:cover;border-radius:10px;margin-top:8px;border:1px solid var(--panel-b);}
+
+/* misc */
+.muted{color:var(--muted);}
+.center{text-align:center;}
+.flex-between{display:flex;justify-content:space-between;align-items:center;}
+.tag-row{display:flex;gap:6px;flex-wrap:wrap;}
+.small{font-size:11.5px;}
+.qr-canvas-box{background:#fff;padding:14px;border-radius:12px;display:inline-block;}
+.empty-state{text-align:center;padding:40px;color:var(--muted);font-size:13px;}
+</style>
+</head>
+<body>
+
+<!-- ==================== LOGIN SCREEN ==================== -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="logo"><div class="logo-badge">CC</div><div class="logo-text"><b>CASHLESS COLOMBIA</b><span>HOUSEKEEPING CONTROL</span></div></div>
+    <div class="login-title">Control de Limpieza Hotelera</div>
+    <div class="card login-card glow">
+      <div class="field"><label>Usuario / Cédula / Correo</label><input id="loginUser" placeholder="admin, cédula o correo"></div>
+      <div class="field"><label>Contraseña</label><input id="loginPass" type="password" placeholder="••••••••"></div>
+      <button class="btn btn-primary btn-lg" onclick="App.login()">INICIAR SESIÓN</button>
+      <div class="login-err" id="loginErr"></div>
+      <div class="demo-hint">
+        <b>Administrador inicial:</b> admin / 1234<br>
+        Cambie la contraseña desde "Administradores" apenas ingrese.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== APP SHELL ==================== -->
+<div id="appShell">
+  <div class="overlay-bg" id="overlayBg" onclick="App.closeSidebar()"></div>
+  <div class="shell-row">
+    <!-- ADMIN SIDEBAR -->
+    <div class="sidebar" id="sidebar">
+      <div class="logo"><div class="logo-badge">CC</div><div class="logo-text"><b>CASHLESS</b><span>COLOMBIA</span></div></div>
+      <div id="navList"></div>
+      <div class="sidebar-foot">
+        <div class="userchip"><span id="sideAvatar">👤</span><span><b id="sideUserName">-</b><span id="sideUserRole">-</span></span></div>
+        <button class="btn btn-ghost" style="width:100%" onclick="App.logout()">Cerrar sesión</button>
+      </div>
+    </div>
+    <div class="main">
+      <div class="mobile-topbar">
+        <button class="btn btn-sm" onclick="App.toggleSidebar()">☰ Menú</button>
+        <div class="logo"><div class="logo-badge" style="width:30px;height:30px;font-size:12px;">CC</div></div>
+      </div>
+      <div id="adminView"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== EMPLOYEE SCREEN ==================== -->
+<div id="employeeScreen" class="hidden"></div>
+
+<!-- ==================== MODAL ==================== -->
+<div class="modal-bg" id="modalBg"><div class="modal" id="modalBox"></div></div>
+<div id="toastWrap"></div>
+
+<script>
+'use strict';
+
+/* ==================== CONFIG ==================== */
+const CFG = {
+  storageKey: 'ccHousekeepingDB_v1',
+  sessionKey: 'ccHousekeepingSession_v1',
+  // Credenciales de Supabase (clave "anon" pública: se usa en el cliente junto con RLS).
+  supabaseUrl: 'https://hzgebtdedpdaoytpskhi.supabase.co',
+  supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6Z2VidGRlZHBkYW95dHBza2hpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxMjEwOTMsImV4cCI6MjEwNTY5NzA5M30.eFEbyloia2ktWaPACSeKxspmM4LCj7KQIVghetfg9XU'
+};
+
+/* ==================== CLOUD SYNC (SUPABASE) ====================
+   La app funciona "local-first": el objeto DB en memoria y localStorage
+   siguen siendo la fuente de verdad para renderizar de inmediato, sin
+   depender de la latencia de red. Cada mutación local se refleja además
+   en Supabase (fire-and-forget con manejo de errores) para que todos los
+   dispositivos conectados compartan la misma información.
+   IMPORTANTE (producción): esta demo usa la clave "anon" con políticas RLS
+   permisivas (ver schema.sql) porque la autenticación es una tabla propia
+   "users" con contraseña en texto plano, igual que en la versión localStorage.
+   Para producción real se recomienda: Supabase Auth, RLS por usuario/rol,
+   Supabase Storage para fotografías (en vez de Data URL en la base de datos)
+   y una Edge Function para el login. */
+let sbClient = null;
+let CLOUD_ONLINE = false;
+try{
+  if(window.supabase && CFG.supabaseUrl && CFG.supabaseAnonKey){
+    sbClient = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey);
+  }
+}catch(e){ console.warn('No fue posible inicializar el cliente Supabase', e); }
+
+const Cloud = {
+  tables: ['hotel','floors','rooms','employees','users','assignments','cleaning_sessions','incidents','history','settings'],
+
+  /* ---- Conversión camelCase (app) <-> snake_case (Postgres) ---- */
+  toRow(entity, obj){
+    switch(entity){
+      case 'hotel': return { id:'main', name:obj.name, floors_count:obj.floorsCount, rooms_count:obj.roomsCount };
+      case 'floors': return { id:obj.id, name:obj.name, number:obj.number, rooms_count:obj.roomsCount };
+      case 'rooms': return { id:obj.id, number:obj.number, floor:obj.floor, type:obj.type, category:obj.category,
+        estimated_minutes:obj.estimatedMinutes, status:obj.status, qr:obj.qr, nfc:obj.nfc, notes:obj.notes, active:obj.active };
+      case 'employees': return { id:obj.id, name:obj.name, document:obj.document, phone:obj.phone, email:obj.email,
+        position:obj.position, shift:obj.shift, floor:obj.floor, status:obj.status, photo:obj.photo, password:obj.password||null };
+      case 'users': return { username:obj.username, password:obj.password, role:obj.role, name:obj.name, employee_id:obj.employeeId||null };
+      case 'assignments': return { id:obj.id, employee_id:obj.employeeId, room_ids:obj.roomIds };
+      case 'cleaning_sessions': return { id:obj.id, room_id:obj.roomId, employee_id:obj.employeeId, start_time:obj.startTime,
+        end_time:obj.endTime, estimated_minutes:obj.estimatedMinutes, gps_start:obj.gpsStart, gps_end:obj.gpsEnd,
+        status:obj.status, duration_seconds:obj.durationSeconds, diff_seconds:obj.diffSeconds };
+      case 'incidents': return { id:obj.id, session_id:obj.sessionId, room_id:obj.roomId, employee_id:obj.employeeId,
+        type:obj.type, description:obj.description, photo:obj.photo, gps:obj.gps, timestamp:obj.timestamp };
+      case 'history': return { id:obj.id, timestamp:obj.timestamp, user_name:obj.user, event:obj.event, description:obj.description };
+      case 'settings': return { id:'main', normal_minutes:obj.normalMinutes, special_minutes:obj.specialMinutes,
+        presidential_minutes:obj.presidentialMinutes, tolerance:obj.tolerance, yellow_limit:obj.yellowLimit,
+        red_limit:obj.redLimit, gps_required:obj.gpsRequired, photo_required:obj.photoRequired };
+      default: return obj;
+    }
+  },
+  fromRow(entity, row){
+    switch(entity){
+      case 'hotel': return { name:row.name, floorsCount:row.floors_count, roomsCount:row.rooms_count };
+      case 'floors': return { id:row.id, name:row.name, number:row.number, roomsCount:row.rooms_count };
+      case 'rooms': return { id:row.id, number:row.number, floor:row.floor, type:row.type, category:row.category,
+        estimatedMinutes:row.estimated_minutes, status:row.status, qr:row.qr, nfc:row.nfc, notes:row.notes, active:row.active };
+      case 'employees': return { id:row.id, name:row.name, document:row.document, phone:row.phone, email:row.email,
+        position:row.position, shift:row.shift, floor:row.floor, status:row.status, photo:row.photo, password:row.password };
+      case 'users': return { username:row.username, password:row.password, role:row.role, name:row.name, employeeId:row.employee_id };
+      case 'assignments': return { id:row.id, employeeId:row.employee_id, roomIds:row.room_ids||[] };
+      case 'cleaning_sessions': return { id:row.id, roomId:row.room_id, employeeId:row.employee_id, startTime:row.start_time,
+        endTime:row.end_time, estimatedMinutes:row.estimated_minutes, gpsStart:row.gps_start, gpsEnd:row.gps_end,
+        status:row.status, durationSeconds:row.duration_seconds, diffSeconds:row.diff_seconds };
+      case 'incidents': return { id:row.id, sessionId:row.session_id, roomId:row.room_id, employeeId:row.employee_id,
+        type:row.type, description:row.description, photo:row.photo, gps:row.gps, timestamp:row.timestamp };
+      case 'history': return { id:row.id, timestamp:row.timestamp, user:row.user_name, event:row.event, description:row.description };
+      case 'settings': return { normalMinutes:row.normal_minutes, specialMinutes:row.special_minutes,
+        presidentialMinutes:row.presidential_minutes, tolerance:row.tolerance, yellowLimit:row.yellow_limit,
+        redLimit:row.red_limit, gpsRequired:row.gps_required, photoRequired:row.photo_required };
+      default: return row;
+    }
+  },
+
+  /* ---- Lectura completa desde Supabase ---- */
+  async fetchAll(){
+    if(!sbClient) return null;
+    try{
+      const [hotel,floors,rooms,employees,users,assignments,sessions,incidents,history,settings] = await Promise.all([
+        sbClient.from('hotel').select('*').eq('id','main').maybeSingle(),
+        sbClient.from('floors').select('*'),
+        sbClient.from('rooms').select('*'),
+        sbClient.from('employees').select('*'),
+        sbClient.from('users').select('*'),
+        sbClient.from('assignments').select('*'),
+        sbClient.from('cleaning_sessions').select('*'),
+        sbClient.from('incidents').select('*'),
+        sbClient.from('history').select('*').order('timestamp',{ascending:false}).limit(500),
+        sbClient.from('settings').select('*').eq('id','main').maybeSingle()
+      ]);
+      const anyError = [hotel,floors,rooms,employees,users,assignments,sessions,incidents,history,settings].find(r=>r.error);
+      if(anyError){ console.warn('Supabase fetch error', anyError.error); return null; }
+      CLOUD_ONLINE = true;
+      return {
+        hotel: hotel.data ? Cloud.fromRow('hotel',hotel.data) : null,
+        floors: (floors.data||[]).map(r=>Cloud.fromRow('floors',r)),
+        rooms: (rooms.data||[]).map(r=>Cloud.fromRow('rooms',r)),
+        employees: (employees.data||[]).map(r=>Cloud.fromRow('employees',r)),
+        users: (users.data||[]).map(r=>Cloud.fromRow('users',r)),
+        assignments: (assignments.data||[]).map(r=>Cloud.fromRow('assignments',r)),
+        cleaningSessions: (sessions.data||[]).map(r=>Cloud.fromRow('cleaning_sessions',r)),
+        incidents: (incidents.data||[]).map(r=>Cloud.fromRow('incidents',r)),
+        history: (history.data||[]).map(r=>Cloud.fromRow('history',r)),
+        settings: settings.data ? Cloud.fromRow('settings',settings.data) : null
+      };
+    }catch(e){ console.warn('Supabase no disponible, se continúa en modo local.', e); CLOUD_ONLINE=false; return null; }
+  },
+
+  /* ---- Escritura de una fila (crear/actualizar) ---- */
+  async upsert(entity, obj){
+    if(!sbClient) return;
+    try{
+      const row = Cloud.toRow(entity, obj);
+      const conflictCol = entity==='users' ? 'username' : 'id';
+      const { error } = await sbClient.from(entity).upsert(row, { onConflict: conflictCol });
+      if(error) throw error;
+      CLOUD_ONLINE = true;
+    }catch(e){ console.warn('Error sincronizando con Supabase ('+entity+')', e); toast('⚠️ Cambio guardado localmente. Sin conexión con la nube.','warn'); }
+  },
+  /* ---- Eliminar una fila ---- */
+  async remove(entity, id, idCol){
+    if(!sbClient) return;
+    try{
+      const { error } = await sbClient.from(entity).delete().eq(idCol||'id', id);
+      if(error) throw error;
+    }catch(e){ console.warn('Error eliminando en Supabase ('+entity+')', e); toast('⚠️ No se pudo eliminar en la nube.','warn'); }
+  },
+  /* ---- Vaciar todas las tablas (usado en "restablecer datos demo") ---- */
+  async clearAll(){
+    if(!sbClient) return;
+    for(const t of Cloud.tables){
+      try{ await sbClient.from(t).delete().neq(t==='users'?'username':'id', '___none___'); }catch(e){ console.warn('Error limpiando tabla', t, e); }
+    }
+  },
+  /* ---- Subir toda la base local a Supabase (seed inicial / reset) ---- */
+  async pushAll(dbObj){
+    if(!sbClient) return;
+    try{
+      await sbClient.from('hotel').upsert(Cloud.toRow('hotel', dbObj.hotel), { onConflict:'id' });
+      await sbClient.from('settings').upsert(Cloud.toRow('settings', dbObj.settings), { onConflict:'id' });
+      if(dbObj.floors.length) await sbClient.from('floors').upsert(dbObj.floors.map(r=>Cloud.toRow('floors',r)), { onConflict:'id' });
+      if(dbObj.employees.length) await sbClient.from('employees').upsert(dbObj.employees.map(r=>Cloud.toRow('employees',r)), { onConflict:'id' });
+      if(dbObj.rooms.length) await sbClient.from('rooms').upsert(dbObj.rooms.map(r=>Cloud.toRow('rooms',r)), { onConflict:'id' });
+      if(dbObj.users.length) await sbClient.from('users').upsert(dbObj.users.map(r=>Cloud.toRow('users',r)), { onConflict:'username' });
+      if(dbObj.assignments.length) await sbClient.from('assignments').upsert(dbObj.assignments.map(r=>Cloud.toRow('assignments',r)), { onConflict:'id' });
+      if(dbObj.cleaningSessions.length) await sbClient.from('cleaning_sessions').upsert(dbObj.cleaningSessions.map(r=>Cloud.toRow('cleaning_sessions',r)), { onConflict:'id' });
+      if(dbObj.incidents.length) await sbClient.from('incidents').upsert(dbObj.incidents.map(r=>Cloud.toRow('incidents',r)), { onConflict:'id' });
+      if(dbObj.history.length) await sbClient.from('history').upsert(dbObj.history.map(r=>Cloud.toRow('history',r)), { onConflict:'id' });
+      CLOUD_ONLINE = true;
+    }catch(e){ console.warn('Error subiendo datos iniciales a Supabase', e); }
+  }
+};
+
+/* ==================== DATABASE ==================== */
+const DB_SCHEMA_KEYS = ['hotel','floors','rooms','employees','users','assignments','cleaningSessions','incidents','gpsLogs','history','settings'];
+let DB = {};
+
+async function loadData(){
+  // 1) Intentar cargar desde Supabase (fuente compartida entre dispositivos)
+  const cloud = await Cloud.fetchAll();
+  if(cloud && cloud.users && cloud.users.length){
+    DB = { hotel:cloud.hotel||{}, floors:cloud.floors, rooms:cloud.rooms, employees:cloud.employees,
+      users:cloud.users, assignments:cloud.assignments, cleaningSessions:cloud.cleaningSessions,
+      incidents:cloud.incidents, gpsLogs:[], history:cloud.history, settings:cloud.settings||{} };
+    localStorage.setItem(CFG.storageKey, JSON.stringify(DB)); // cache local para modo offline
+  } else {
+    // 2) Sin datos en Supabase todavía: usar caché local si existe, o inicializar en limpio
+    try{
+      const raw = localStorage.getItem(CFG.storageKey);
+      if(raw){ DB = JSON.parse(raw); } else { initEmptyData(); }
+    }catch(e){ console.error('Error cargando datos, reiniciando', e); initEmptyData(); }
+    saveData();
+    // 3) Si hay conexión a Supabase pero las tablas están vacías, sembrarlas
+    if(sbClient) await Cloud.pushAll(DB);
+  }
+  // asegurar todas las claves existen (por si se agregan nuevas en el futuro)
+  DB_SCHEMA_KEYS.forEach(k=>{ if(!(k in DB)) DB[k] = Array.isArray(DB[k]) ? [] : (k==='settings'||k==='hotel' ? {} : []); });
+}
+function saveData(){
+  localStorage.setItem(CFG.storageKey, JSON.stringify(DB));
+}
+function generateId(prefix){
+  return (prefix||'ID') + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+}
+async function resetDatabase(){
+  localStorage.removeItem(CFG.storageKey);
+  await Cloud.clearAll();
+  initEmptyData(); saveData();
+  await Cloud.pushAll(DB);
+  toast('Datos restablecidos. Se conservó únicamente el administrador principal.','ok');
+  render();
+}
+function logHistory(user, event, description){
+  const entry = { id:generateId('HIST'), timestamp:new Date().toISOString(), user:user||'sistema', event, description:description||'' };
+  DB.history.unshift(entry);
+  DB.history = DB.history.slice(0,500);
+  Cloud.upsert('history', entry);
+}
+
+// Inicialización en limpio: sin datos de ejemplo, solo la configuración base y el administrador principal.
+function initEmptyData(){
+  DB = { hotel:{}, floors:[], rooms:[], employees:[], users:[], assignments:[], cleaningSessions:[], incidents:[], gpsLogs:[], history:[], settings:{} };
+  DB.hotel = { name:'Hotel', floorsCount:0, roomsCount:0 };
+  DB.settings = { normalMinutes:30, specialMinutes:50, presidentialMinutes:75, tolerance:5, yellowLimit:10, redLimit:10, gpsRequired:true, photoRequired:false };
+  DB.users.push({ username:'admin', password:'1234', role:'ADMIN', name:'Administrador' });
+  logHistory('sistema','INICIALIZACIÓN','Base de datos inicializada.');
+}
+
+/* ==================== AUTH ==================== */
+const Auth = {
+  current(){ try{ return JSON.parse(sessionStorage.getItem(CFG.sessionKey) || localStorage.getItem(CFG.sessionKey)); }catch(e){ return null; } },
+  login(username, password){
+    if(!username || !password) return null;
+    // 1) Administradores: por nombre de usuario
+    const u = DB.users.find(u=>u.username===username && u.password===password);
+    if(u){
+      const sess = { username:u.username, role:u.role, name:u.name, employeeId:u.employeeId||null, loginAt:new Date().toISOString() };
+      localStorage.setItem(CFG.sessionKey, JSON.stringify(sess));
+      logHistory(u.username,'LOGIN','Inicio de sesión de '+u.name);
+      saveData();
+      return sess;
+    }
+    // 2) Colaboradores: por cédula (documento) o correo, con la contraseña asignada en su ficha
+    const input = username.trim().toLowerCase();
+    const emp = DB.employees.find(e=>
+      e.password && e.password===password &&
+      ((e.document && e.document.trim().toLowerCase()===input) || (e.email && e.email.trim().toLowerCase()===input))
+    );
+    if(emp){
+      const sess = { username:emp.document, role:'EMPLEADA', name:emp.name, employeeId:emp.id, loginAt:new Date().toISOString() };
+      localStorage.setItem(CFG.sessionKey, JSON.stringify(sess));
+      logHistory(emp.document,'LOGIN','Inicio de sesión de '+emp.name);
+      saveData();
+      return sess;
+    }
+    return null;
+  },
+  logout(){
+    const s = Auth.current();
+    if(s) logHistory(s.username,'LOGOUT','Cierre de sesión');
+    saveData();
+    localStorage.removeItem(CFG.sessionKey);
+  }
+};
+
+/* ==================== TIMER (basado en timestamps reales) ==================== */
+const Timer = {
+  intervalId:null,
+  start(cb){
+    Timer.stop();
+    Timer.intervalId = setInterval(cb, 1000);
+    cb();
+  },
+  stop(){ if(Timer.intervalId){ clearInterval(Timer.intervalId); Timer.intervalId=null; } },
+  elapsedSeconds(startIso){ return Math.max(0, Math.floor((Date.now() - new Date(startIso).getTime())/1000)); },
+  format(totalSeconds){
+    totalSeconds = Math.max(0, Math.round(totalSeconds));
+    const h = Math.floor(totalSeconds/3600), m = Math.floor((totalSeconds%3600)/60), s = totalSeconds%60;
+    return [h,m,s].map(v=>String(v).padStart(2,'0')).join(':');
+  },
+  formatLong(totalSeconds){
+    totalSeconds = Math.max(0, Math.round(totalSeconds));
+    const h = Math.floor(totalSeconds/3600), m = Math.floor((totalSeconds%3600)/60), s = totalSeconds%60;
+    return `${String(h).padStart(2,'0')} h ${String(m).padStart(2,'0')} min ${String(s).padStart(2,'0')} s`;
+  }
+};
+
+/* ==================== GPS ==================== */
+const GPS = {
+  capture(){
+    return new Promise((resolve)=>{
+      if(!navigator.geolocation){ resolve(null); return; }
+      navigator.geolocation.getCurrentPosition(
+        pos=>resolve({ lat:pos.coords.latitude, lng:pos.coords.longitude, accuracy:Math.round(pos.coords.accuracy||0), timestamp:new Date().toISOString() }),
+        ()=>resolve(null),
+        { enableHighAccuracy:true, timeout:8000, maximumAge:0 }
+      );
+    });
+  }
+};
+
+/* ==================== QR (lector) ==================== */
+const QR = {
+  stream:null, detecting:false, detector:null, scanCb:null,
+  async open(videoEl, onDetect){
+    QR.scanCb = onDetect;
+    try{
+      QR.stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment' } });
+      videoEl.srcObject = QR.stream;
+      await videoEl.play();
+      QR.detecting = true;
+      if('BarcodeDetector' in window){
+        QR.detector = new BarcodeDetector({ formats:['qr_code'] });
+        QR.loopNative(videoEl);
+      } else if(window.jsQR){
+        QR.loopJsQR(videoEl);
+      } else {
+        toast('Este navegador no soporta lectura de QR por cámara. Use la entrada manual.','warn');
+      }
+      return true;
+    }catch(e){
+      console.warn('Cámara no disponible', e);
+      return false;
+    }
+  },
+  async loopNative(videoEl){
+    if(!QR.detecting) return;
+    try{
+      const codes = await QR.detector.detect(videoEl);
+      if(codes && codes[0] && QR.scanCb){ QR.scanCb(codes[0].rawValue); return; }
+    }catch(e){}
+    requestAnimationFrame(()=>QR.loopNative(videoEl));
+  },
+  loopJsQR(videoEl){
+    if(!QR.detecting) return;
+    if(videoEl.readyState === videoEl.HAVE_ENOUGH_DATA){
+      const canvas = document.createElement('canvas');
+      canvas.width = videoEl.videoWidth; canvas.height = videoEl.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(videoEl,0,0,canvas.width,canvas.height);
+      const img = ctx.getImageData(0,0,canvas.width,canvas.height);
+      const code = window.jsQR(img.data, img.width, img.height);
+      if(code && code.data && QR.scanCb){ QR.scanCb(code.data); return; }
+    }
+    requestAnimationFrame(()=>QR.loopJsQR(videoEl));
+  },
+  close(){
+    QR.detecting = false;
+    if(QR.stream){ QR.stream.getTracks().forEach(t=>t.stop()); QR.stream=null; }
+  },
+  // generación visual simple de un "QR" ilustrativo (canvas matriz determinística a partir del texto)
+  renderVisual(canvas, text){
+    const size = 21, cell = 8;
+    canvas.width = size*cell; canvas.height = size*cell;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = '#0a0e20';
+    let seed = 0; for(let i=0;i<text.length;i++) seed = (seed*31 + text.charCodeAt(i)) >>> 0;
+    function rnd(){ seed = (seed*1103515245+12345) >>> 0; return (seed>>>8) % 100; }
+    for(let y=0;y<size;y++){
+      for(let x=0;x<size;x++){
+        const isFinder = (x<7&&y<7)||(x>size-8&&y<7)||(x<7&&y>size-8);
+        if(isFinder) continue;
+        if(rnd() < 47) ctx.fillRect(x*cell,y*cell,cell,cell);
+      }
+    }
+    [[0,0],[size-7,0],[0,size-7]].forEach(([fx,fy])=>{
+      ctx.fillStyle='#0a0e20'; ctx.fillRect(fx*cell,fy*cell,7*cell,7*cell);
+      ctx.fillStyle='#fff'; ctx.fillRect((fx+1)*cell,(fy+1)*cell,5*cell,5*cell);
+      ctx.fillStyle='#0a0e20'; ctx.fillRect((fx+2)*cell,(fy+2)*cell,3*cell,3*cell);
+    });
+  }
+};
+
+/* ==================== NFC ==================== */
+const NFC = {
+  available(){ return 'NDEFReader' in window; },
+  async read(onDetect){
+    if(!NFC.available()){ toast('Este dispositivo o navegador no soporta NFC. Utilice QR.','warn'); return false; }
+    try{
+      const reader = new NDEFReader();
+      await reader.scan();
+      reader.onreading = (event)=>{
+        try{
+          const record = event.message.records[0];
+          const textDecoder = new TextDecoder(record.encoding || 'utf-8');
+          const value = textDecoder.decode(record.data);
+          onDetect(value);
+        }catch(e){ onDetect(null); }
+      };
+      return true;
+    }catch(e){
+      toast('No fue posible activar NFC: '+(e.message||e),'warn');
+      return false;
+    }
+  },
+  // Escribe el código de la habitación en un TAG NFC físico (requiere Chrome/Android con Web NFC).
+  async write(text){
+    if(!NFC.available()){ toast('Este dispositivo o navegador no soporta escritura NFC. Use Chrome en Android.','warn'); return false; }
+    if(!text){ toast('Ingrese primero un código NFC para asignar','warn'); return false; }
+    try{
+      const writer = new NDEFReader();
+      toast('Acerque el TAG NFC al teléfono para asignarlo...','warn');
+      await writer.write({ records:[{ recordType:'text', data:text }] });
+      toast('TAG NFC asignado correctamente a "'+text+'"','ok');
+      return true;
+    }catch(e){
+      toast('No fue posible escribir el TAG NFC: '+(e.message||e),'err');
+      return false;
+    }
+  }
+};
+
+/* ==================== UI HELPERS ==================== */
+function toast(msg, type){
+  const el = document.createElement('div');
+  el.className = 'toast ' + (type||'ok');
+  el.textContent = msg;
+  document.getElementById('toastWrap').appendChild(el);
+  setTimeout(()=>el.remove(), 3600);
+}
+function openModal(html, wide){
+  document.getElementById('modalBox').className = 'modal' + (wide?' wide':'');
+  document.getElementById('modalBox').innerHTML = '<button class="modal-close" onclick="closeModal()">✕</button>' + html;
+  document.getElementById('modalBg').classList.add('show');
+}
+function closeModal(){ document.getElementById('modalBg').classList.remove('show'); document.getElementById('modalBox').innerHTML=''; }
+document.getElementById('modalBg').addEventListener('click', e=>{ if(e.target.id==='modalBg') closeModal(); });
+
+function timeStatus(diffSeconds, settings){
+  const diffMin = diffSeconds/60;
+  if(diffMin <= 0) return { cls:'b-green', dot:'🟢', label: Math.abs(Math.round(diffMin))+' min por debajo' };
+  if(diffMin <= (settings.yellowLimit||10)) return { cls:'b-yellow', dot:'🟡', label: Math.round(diffMin)+' min por encima' };
+  return { cls:'b-red', dot:'🔴', label: Math.round(diffMin)+' min por encima' };
+}
+function fmtDate(iso){ if(!iso) return '-'; const d = new Date(iso); return d.toLocaleDateString('es-CO'); }
+function fmtTime(iso){ if(!iso) return '-'; const d = new Date(iso); return d.toLocaleTimeString('es-CO',{hour12:false}); }
+function fmtDateTime(iso){ if(!iso) return '-'; return fmtDate(iso)+' '+fmtTime(iso); }
+function escapeHtml(str){ return (str==null?'':String(str)).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function roomById(id){ return DB.rooms.find(r=>r.id===id); }
+function empById(id){ return DB.employees.find(e=>e.id===id); }
+function findActiveSessionByEmployee(employeeId){ return DB.cleaningSessions.find(s=>s.employeeId===employeeId && s.status==='EN_LIMPIEZA'); }
+function findActiveSessionByRoom(roomId){ return DB.cleaningSessions.find(s=>s.roomId===roomId && s.status==='EN_LIMPIEZA'); }
+
+/* ==================== ROUTER / APP ==================== */
+const App = {
+  route:'dashboard',
+  async init(){
+    App.showLoadingSplash();
+    await loadData();
+    App.hideLoadingSplash();
+    const sess = Auth.current();
+    if(sess){ App.enter(sess); } else { App.showLogin(); }
+  },
+  showLoadingSplash(){
+    const el = document.createElement('div');
+    el.id = 'loadingSplash';
+    el.style.cssText = 'position:fixed;inset:0;background:#070b18;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:14px;color:#9aa3c0;font-size:13px;';
+    el.innerHTML = `<div class="logo"><div class="logo-badge">CC</div><div class="logo-text"><b>CASHLESS COLOMBIA</b><span>HOUSEKEEPING CONTROL</span></div></div><div>Conectando con la base de datos...</div>`;
+    document.body.appendChild(el);
+  },
+  hideLoadingSplash(){ document.getElementById('loadingSplash')?.remove(); },
+  showLogin(){
+    document.getElementById('loginScreen').style.display='flex';
+    document.getElementById('appShell').style.display='none';
+    document.getElementById('employeeScreen').classList.add('hidden');
+  },
+  login(){
+    const u = document.getElementById('loginUser').value.trim();
+    const p = document.getElementById('loginPass').value;
+    const sess = Auth.login(u,p);
+    if(!sess){ document.getElementById('loginErr').textContent='Usuario o contraseña incorrectos.'; return; }
+    document.getElementById('loginErr').textContent='';
+    App.enter(sess);
+  },
+  logout(){
+    Timer.stop(); QR.close();
+    Auth.logout();
+    App.showLogin();
+  },
+  enter(sess){
+    document.getElementById('loginScreen').style.display='none';
+    if(sess.role==='ADMIN'){
+      document.getElementById('appShell').style.display='block';
+      document.getElementById('employeeScreen').classList.add('hidden');
+      document.getElementById('sideUserName').textContent = sess.name;
+      document.getElementById('sideUserRole').textContent = 'Administrador';
+      Admin.buildNav();
+      Admin.go('dashboard');
+    } else {
+      document.getElementById('appShell').style.display='none';
+      document.getElementById('employeeScreen').classList.remove('hidden');
+      Employee.render();
+    }
+  },
+  toggleSidebar(){ document.getElementById('sidebar').classList.toggle('open'); document.getElementById('overlayBg').classList.toggle('show'); },
+  closeSidebar(){ document.getElementById('sidebar').classList.remove('open'); document.getElementById('overlayBg').classList.remove('show'); }
+};
+function render(){ const sess = Auth.current(); if(sess) App.enter(sess); }
+
+/* ==================== ADMIN MODULE ==================== */
+const Admin = {
+  navItems:[
+    ['dashboard','📊','Dashboard'],['rooms','🛏️','Habitaciones'],['floors','🏢','Pisos'],
+    ['employees','🧑‍🔧','Colaboradores'],['assignments','📌','Asignaciones'],['cleanings','🧾','Limpiezas'],
+    ['times','⏱️','Tiempos'],['incidents','⚠️','Novedades'],['photos','📷','Fotografías'],
+    ['map','🗺️','Mapa GPS'],['history','🕓','Historial'],['reports','📤','Reportes'],
+    ['admins','🛡️','Administradores'],['settings','⚙️','Configuración']
+  ],
+  buildNav(){
+    const html = Admin.navItems.map(([key,ic,label])=>
+      `<div class="navitem" data-nav="${key}" onclick="Admin.go('${key}')"><span class="ic">${ic}</span>${label}</div>`
+    ).join('');
+    document.getElementById('navList').innerHTML = html;
+  },
+  go(route){
+    App.route = route;
+    App.closeSidebar();
+    document.querySelectorAll('.navitem').forEach(n=>n.classList.toggle('active', n.dataset.nav===route));
+    const map = { dashboard:Admin.viewDashboard, rooms:Admin.viewRooms, floors:Admin.viewFloors,
+      employees:Admin.viewEmployees, assignments:Admin.viewAssignments, cleanings:Admin.viewCleanings,
+      times:Admin.viewTimes, incidents:Admin.viewIncidents, photos:Admin.viewPhotos, map:Admin.viewMap,
+      history:Admin.viewHistory, reports:Admin.viewReports, admins:Admin.viewAdmins, settings:Admin.viewSettings };
+    (map[route]||Admin.viewDashboard)();
+  },
+
+  /* -------- DASHBOARD -------- */
+  viewDashboard(){
+    const settings = DB.settings;
+    const rooms = DB.rooms;
+    const totalRooms = rooms.length;
+    const clean = rooms.filter(r=>r.status==='LIMPIA').length;
+    const pending = rooms.filter(r=>r.status==='PENDIENTE DE LIMPIEZA'||r.status==='DISPONIBLE').length;
+    const cleaning = rooms.filter(r=>r.status==='EN LIMPIEZA').length;
+    const oos = rooms.filter(r=>r.status==='FUERA DE SERVICIO').length;
+    const activeEmp = DB.employees.filter(e=>e.status==='ACTIVA'||e.status==='EN TURNO').length;
+    const todayStr = new Date().toDateString();
+    const todaySessions = DB.cleaningSessions.filter(s=>s.endTime && new Date(s.endTime).toDateString()===todayStr);
+    const avgTimeMin = todaySessions.length ? (todaySessions.reduce((a,s)=>a+s.durationSeconds,0)/todaySessions.length/60) : 0;
+    const lateCount = DB.cleaningSessions.filter(s=>s.status==='EN_LIMPIEZA' && (Timer.elapsedSeconds(s.startTime)/60) > (roomById(s.roomId)?.estimatedMinutes||30)).length;
+
+    const cards = [
+      ['Habitaciones totales', totalRooms],['Habitaciones limpias', clean],['Pendientes', pending],
+      ['En limpieza', cleaning],['Fuera de servicio', oos],['Colaboradores activos', activeEmp],
+      ['Limpiezas hoy', todaySessions.length],['Tiempo promedio hoy', avgTimeMin? Timer.format(avgTimeMin*60):'--:--:--']
+    ];
+
+    let html = `<div class="topbar"><div><h1>Dashboard</h1><div class="sub">Resumen operativo en tiempo real · ${DB.hotel.name}</div></div>
+      <button class="btn btn-primary" onclick="Admin.go('cleanings')">Ver limpiezas activas</button></div>`;
+
+    if(lateCount>0){
+      html += `<div class="card glow" style="border-color:rgba(239,68,68,.4);margin-bottom:16px;background:rgba(239,68,68,.08)">
+        ⚠️ <b>${lateCount}</b> limpieza(s) actualmente en curso superan el tiempo estimado.</div>`;
+    }
+
+    html += `<div class="cards-grid">` + cards.map(([lab,val])=>
+      `<div class="card stat-card"><div class="accent"></div><div class="lab">${lab}</div><div class="val">${val}</div></div>`
+    ).join('') + `</div>`;
+
+    html += `<div class="charts-grid">
+      <div class="card chart-card"><h3>Limpiezas por día (últimos 7 días)</h3><canvas id="chartByDay"></canvas></div>
+      <div class="card chart-card"><h3>Tiempo promedio por habitación (top 8)</h3><canvas id="chartByRoom"></canvas></div>
+      <div class="card chart-card"><h3>Tiempo promedio por colaborador</h3><canvas id="chartByEmp"></canvas></div>
+      <div class="card chart-card"><h3>Habitaciones especiales vs normales</h3><canvas id="chartSpecial"></canvas></div>
+      <div class="card chart-card"><h3>Mayor tiempo de limpieza (top 6)</h3><canvas id="chartTop"></canvas></div>
+      <div class="card chart-card"><h3>Limpiezas por piso</h3><canvas id="chartFloor"></canvas></div>
+    </div>`;
+
+    document.getElementById('adminView').innerHTML = html;
+    Charts.renderAll();
+  },
+
+  /* -------- ROOMS -------- */
+  viewRooms(){
+    let html = `<div class="topbar"><div><h1>Habitaciones</h1><div class="sub">${DB.rooms.length} habitaciones registradas</div></div>
+      <button class="btn btn-primary" onclick="Admin.roomForm()">+ Nueva habitación</button></div>`;
+    html += `<div class="toolbar">
+      <input id="roomSearch" placeholder="Buscar número..." oninput="Admin.viewRooms()">
+      <select id="roomFloorFilter" onchange="Admin.viewRooms()"><option value="">Todos los pisos</option>${DB.floors.map(f=>`<option value="${f.number}">${f.name}</option>`).join('')}</select>
+      <select id="roomStatusFilter" onchange="Admin.viewRooms()"><option value="">Todos los estados</option>${['DISPONIBLE','PENDIENTE DE LIMPIEZA','EN LIMPIEZA','LIMPIA','INSPECCIÓN','FUERA DE SERVICIO'].map(s=>`<option>${s}</option>`).join('')}</select>
+    </div>`;
+    const search = (document.getElementById('roomSearch')?.value||'').toLowerCase();
+    const floorF = document.getElementById('roomFloorFilter')?.value||'';
+    const statusF = document.getElementById('roomStatusFilter')?.value||'';
+    let rooms = DB.rooms.filter(r=>
+      (!search || String(r.number).includes(search)) &&
+      (!floorF || String(r.floor)===floorF) &&
+      (!statusF || r.status===statusF)
+    ).sort((a,b)=>a.number-b.number);
+
+    html += `<div class="table-wrap"><table><thead><tr><th>Número</th><th>Piso</th><th>Categoría</th><th>Tipo</th><th>T. estimado</th><th>Estado</th><th>QR</th><th></th></tr></thead><tbody>`;
+    rooms.forEach(r=>{
+      html += `<tr onclick="Admin.roomDetail('${r.id}')">
+        <td><b>${r.number}</b></td><td>${r.floor}</td><td>${r.category}</td>
+        <td><span class="badge ${r.type==='ESPECIAL'?'b-violet':'b-gray'}">${r.type}</span></td>
+        <td>${r.estimatedMinutes} min</td>
+        <td>${Admin.statusBadge(r.status)}</td>
+        <td>${r.qr}</td>
+        <td><button class="btn btn-sm" onclick="event.stopPropagation();Admin.roomForm('${r.id}')">Editar</button></td>
+      </tr>`;
+    });
+    if(!rooms.length) html += `<tr><td colspan="8" class="empty-state">Sin resultados</td></tr>`;
+    html += `</tbody></table></div>`;
+    document.getElementById('adminView').innerHTML = html;
+  },
+  statusBadge(status){
+    const map = { 'DISPONIBLE':'b-blue','PENDIENTE DE LIMPIEZA':'b-yellow','EN LIMPIEZA':'b-violet','LIMPIA':'b-green','INSPECCIÓN':'b-blue','FUERA DE SERVICIO':'b-red' };
+    return `<span class="badge ${map[status]||'b-gray'}">${status}</span>`;
+  },
+  roomForm(id){
+    const r = id ? roomById(id) : null;
+    const qrPreview = r ? r.qr : '';
+    const html = `<h2>${r?'Editar':'Nueva'} habitación</h2>
+      <div class="grid2">
+        <div class="field"><label>Número</label><input id="f_number" type="number" value="${r?r.number:''}" oninput="Admin.previewRoomQr()"></div>
+        <div class="field"><label>Piso</label><select id="f_floor">${DB.floors.map(f=>`<option value="${f.number}" ${r&&r.floor===f.number?'selected':''}>${f.name}</option>`).join('')}</select></div>
+        <div class="field"><label>Categoría</label><select id="f_category" onchange="document.getElementById('f_est').value = Admin.defaultEst(this.value)">
+          ${['Normal','Suite','Suite Presidencial','VIP','Habitación familiar'].map(c=>`<option ${r&&r.category===c?'selected':''}>${c}</option>`).join('')}</select></div>
+        <div class="field"><label>Tiempo estimado (min)</label><input id="f_est" type="number" value="${r?r.estimatedMinutes:DB.settings.normalMinutes}"></div>
+        <div class="field"><label>Estado</label><select id="f_status">${['DISPONIBLE','PENDIENTE DE LIMPIEZA','LIMPIA','INSPECCIÓN','FUERA DE SERVICIO'].map(s=>`<option ${r&&r.status===s?'selected':''}>${s}</option>`).join('')}</select></div>
+        <div class="field">
+          <label>Código NFC</label>
+          <div style="display:flex;gap:8px;">
+            <input id="f_nfc" value="${r?r.nfc:''}" placeholder="Se genera automáticamente" style="flex:1">
+            <button type="button" class="btn btn-sm" onclick="Admin.assignNfcTag()" title="Escribir este código en un TAG NFC físico">📶 Asignar TAG</button>
+          </div>
+        </div>
+      </div>
+      <div class="field"><label>Notas</label><textarea id="f_notes">${r?escapeHtml(r.notes||''):''}</textarea></div>
+      <div class="divider"></div>
+      <div class="field">
+        <label>Código QR único (para validar el aseo)</label>
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+          <div class="qr-canvas-box"><canvas id="f_qrCanvas"></canvas></div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <span class="small muted" id="f_qrText">${qrPreview || 'Ingrese el número para generar el QR'}</span>
+            <button type="button" class="btn btn-sm" onclick="Admin.previewRoomQr()">🔄 Generar QR</button>
+            <button type="button" class="btn btn-sm" onclick="window.print()">🖨️ Imprimir QR</button>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:10px;">
+        ${r?`<button class="btn btn-danger" onclick="Admin.deleteRoom('${r.id}')">Eliminar</button>`:''}
+        <button class="btn btn-primary" onclick="Admin.saveRoom('${r?r.id:''}')">Guardar</button>
+      </div>`;
+    openModal(html);
+    setTimeout(()=>Admin.previewRoomQr(), 30);
+  },
+  // Dibuja en el formulario el QR único de la habitación (ROOM-<numero>), a partir del número ingresado.
+  previewRoomQr(){
+    const numEl = document.getElementById('f_number');
+    const canvas = document.getElementById('f_qrCanvas');
+    const label = document.getElementById('f_qrText');
+    if(!numEl || !canvas || !label) return;
+    const number = numEl.value;
+    if(!number){ label.textContent = 'Ingrese el número para generar el QR'; canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height); return; }
+    const code = 'ROOM-'+number;
+    label.textContent = code;
+    QR.renderVisual(canvas, code);
+  },
+  // Escribe (o asigna) el código NFC actual del formulario a un TAG físico vía Web NFC.
+  async assignNfcTag(){
+    const nfcInput = document.getElementById('f_nfc');
+    const numEl = document.getElementById('f_number');
+    let value = nfcInput.value.trim();
+    if(!value){
+      const number = numEl.value;
+      if(!number){ toast('Ingrese primero el número de habitación','warn'); return; }
+      value = 'NFC-ROOM-'+number;
+      nfcInput.value = value;
+    }
+    await NFC.write(value);
+  },
+  defaultEst(cat){
+    if(cat==='Suite') return DB.settings.specialMinutes;
+    if(cat==='Suite Presidencial') return DB.settings.presidentialMinutes;
+    if(cat==='VIP') return DB.settings.presidentialMinutes;
+    return DB.settings.normalMinutes;
+  },
+  saveRoom(id){
+    const number = parseInt(document.getElementById('f_number').value);
+    if(!number){ toast('Ingrese un número de habitación válido','err'); return; }
+    const category = document.getElementById('f_category').value;
+    const data = {
+      number, floor: parseInt(document.getElementById('f_floor').value), category,
+      type: category==='Normal' ? 'NORMAL':'ESPECIAL',
+      estimatedMinutes: parseInt(document.getElementById('f_est').value)||30,
+      status: document.getElementById('f_status').value,
+      nfc: document.getElementById('f_nfc').value || ('NFC-ROOM-'+number),
+      notes: document.getElementById('f_notes').value
+    };
+    let savedRoom;
+    if(id){
+      const r = roomById(id); Object.assign(r, data); savedRoom = r;
+      logHistory(Auth.current().username,'HABITACIÓN','Habitación '+number+' actualizada.');
+    } else {
+      savedRoom = { id:generateId('ROOM'), qr:'ROOM-'+number, active:true, ...data };
+      DB.rooms.push(savedRoom);
+      logHistory(Auth.current().username,'HABITACIÓN','Habitación '+number+' creada.');
+    }
+    saveData(); Cloud.upsert('rooms', savedRoom); closeModal(); Admin.viewRooms(); toast('Habitación guardada','ok');
+  },
+  deleteRoom(id){
+    DB.rooms = DB.rooms.filter(r=>r.id!==id); saveData(); Cloud.remove('rooms', id); closeModal(); Admin.viewRooms(); toast('Habitación eliminada','ok');
+  },
+  roomDetail(id){
+    const r = roomById(id);
+    const sessions = DB.cleaningSessions.filter(s=>s.roomId===id && s.status==='FINALIZADA');
+    const durations = sessions.map(s=>s.durationSeconds/60);
+    const avg = durations.length ? (durations.reduce((a,b)=>a+b,0)/durations.length) : 0;
+    const max = durations.length ? Math.max(...durations) : 0;
+    const min = durations.length ? Math.min(...durations) : 0;
+    const last = sessions.sort((a,b)=>new Date(b.endTime)-new Date(a.endTime))[0];
+    const html = `<h2>Habitación ${r.number}</h2>
+      <div class="kv"><b>Piso</b><span>${r.floor}</span></div>
+      <div class="kv"><b>Categoría</b><span>${r.category}</span></div>
+      <div class="kv"><b>Tipo</b><span>${r.type}</span></div>
+      <div class="kv"><b>Estado</b><span>${Admin.statusBadge(r.status)}</span></div>
+      <div class="kv"><b>Tiempo estimado</b><span>${r.estimatedMinutes} min</span></div>
+      <div class="kv"><b>Código QR</b><span>${r.qr}</span></div>
+      <div class="kv"><b>NFC UID</b><span>${r.nfc}</span></div>
+      <div class="divider"></div>
+      <div class="kv"><b>Promedio histórico</b><span>${avg?avg.toFixed(1)+' min':'-'}</span></div>
+      <div class="kv"><b>Máximo histórico</b><span>${max?max.toFixed(1)+' min':'-'}</span></div>
+      <div class="kv"><b>Mínimo histórico</b><span>${min?min.toFixed(1)+' min':'-'}</span></div>
+      <div class="kv"><b>Última limpieza</b><span>${last? fmtDateTime(last.endTime) + ' · '+ (empById(last.employeeId)?.name||'-') :'-'}</span></div>
+      <div class="divider"></div>
+      <div class="center">
+        <div class="qr-canvas-box"><canvas id="qrCanvasDetail"></canvas></div>
+        <div class="small muted" style="margin-top:8px">${r.qr}</div>
+        <div style="margin-top:12px;display:flex;gap:8px;justify-content:center">
+          <button class="btn btn-sm" onclick="window.print()">🖨️ Imprimir QR</button>
+          <button class="btn btn-sm btn-primary" onclick="Admin.roomForm('${r.id}');closeModal();Admin.roomForm('${r.id}')">Editar</button>
+        </div>
+      </div>`;
+    openModal(html);
+    setTimeout(()=>QR.renderVisual(document.getElementById('qrCanvasDetail'), r.qr), 30);
+  },
+
+  /* -------- FLOORS -------- */
+  viewFloors(){
+    let html = `<div class="topbar"><div><h1>Pisos</h1><div class="sub">${DB.floors.length} pisos configurados</div></div>
+      <button class="btn btn-primary" onclick="Admin.floorForm()">+ Nuevo piso</button></div><div class="cards-grid">`;
+    DB.floors.sort((a,b)=>a.number-b.number).forEach(f=>{
+      const rooms = DB.rooms.filter(r=>r.floor===f.number);
+      const clean = rooms.filter(r=>r.status==='LIMPIA').length;
+      const pending = rooms.filter(r=>r.status==='DISPONIBLE'||r.status==='PENDIENTE DE LIMPIEZA').length;
+      const cleaning = rooms.filter(r=>r.status==='EN LIMPIEZA').length;
+      const sessions = DB.cleaningSessions.filter(s=>s.status==='FINALIZADA' && roomById(s.roomId)?.floor===f.number);
+      const avg = sessions.length ? (sessions.reduce((a,s)=>a+s.durationSeconds,0)/sessions.length/60) : 0;
+      html += `<div class="card stat-card">
+        <div class="flex-between"><b>${f.name}</b>
+          <div class="tag-row"><button class="btn btn-sm" onclick="Admin.floorForm('${f.id}')">✎</button><button class="btn btn-sm btn-danger" onclick="Admin.deleteFloor('${f.id}')">✕</button></div>
+        </div>
+        <div class="small muted" style="margin-top:8px">Habitaciones: ${rooms.length}</div>
+        <div class="small muted">Limpias: ${clean} · Pendientes: ${pending} · En limpieza: ${cleaning}</div>
+        <div class="small muted">Tiempo promedio: ${avg?avg.toFixed(1)+' min':'-'}</div>
+      </div>`;
+    });
+    html += `</div>`;
+    document.getElementById('adminView').innerHTML = html;
+  },
+  floorForm(id){
+    const f = id? DB.floors.find(x=>x.id===id) : null;
+    const html = `<h2>${f?'Editar':'Nuevo'} piso</h2>
+      <div class="field"><label>Nombre</label><input id="f_fname" value="${f?f.name:''}"></div>
+      <div class="field"><label>Número</label><input id="f_fnum" type="number" value="${f?f.number:''}"></div>
+      <div style="display:flex;justify-content:flex-end;gap:10px"><button class="btn btn-primary" onclick="Admin.saveFloor('${f?f.id:''}')">Guardar</button></div>`;
+    openModal(html);
+  },
+  saveFloor(id){
+    const name = document.getElementById('f_fname').value.trim();
+    const number = parseInt(document.getElementById('f_fnum').value);
+    if(!name||!number){ toast('Complete los campos','err'); return; }
+    let savedFloor;
+    if(id){ savedFloor = DB.floors.find(f=>f.id===id); Object.assign(savedFloor, { name, number }); }
+    else { savedFloor = { id:generateId('FLR'), name, number, roomsCount:0 }; DB.floors.push(savedFloor); }
+    saveData(); Cloud.upsert('floors', savedFloor); closeModal(); Admin.viewFloors(); toast('Piso guardado','ok');
+  },
+  deleteFloor(id){ DB.floors = DB.floors.filter(f=>f.id!==id); saveData(); Cloud.remove('floors', id); Admin.viewFloors(); },
+
+  /* -------- COLABORADORES -------- */
+  viewEmployees(){
+    let html = `<div class="topbar"><div><h1>Colaboradores</h1><div class="sub">${DB.employees.length} colaboradores registrados</div></div>
+      <button class="btn btn-primary" onclick="Admin.empForm()">+ Nuevo colaborador</button></div>`;
+    html += `<div class="table-wrap"><table><thead><tr><th></th><th>Nombre</th><th>Documento</th><th>Cargo</th><th>Turno</th><th>Piso</th><th>Estado</th><th></th></tr></thead><tbody>`;
+    DB.employees.forEach(e=>{
+      html += `<tr onclick="Admin.empDetail('${e.id}')">
+        <td>${e.photo?`<img class="thumb" src="${e.photo}">`:`<div class="thumb" style="background:var(--grad-soft);display:flex;align-items:center;justify-content:center">👤</div>`}</td>
+        <td><b>${e.name}</b></td><td>${e.document}</td><td>${e.position}</td><td>${e.shift}</td><td>${e.floor}</td>
+        <td><span class="badge ${e.status==='ACTIVA'||e.status==='EN TURNO'?'b-green':(e.status==='EN DESCANSO'?'b-yellow':'b-gray')}">${e.status}</span></td>
+        <td><button class="btn btn-sm" onclick="event.stopPropagation();Admin.empForm('${e.id}')">Editar</button></td>
+      </tr>`;
+    });
+    html += `</tbody></table></div>`;
+    document.getElementById('adminView').innerHTML = html;
+  },
+  empForm(id){
+    const e = id? empById(id):null;
+    const html = `<h2>${e?'Editar':'Nuevo'} colaborador</h2>
+      <div class="grid2">
+        <div class="field"><label>Nombre</label><input id="f_ename" value="${e?e.name:''}"></div>
+        <div class="field"><label>Documento (cédula)</label><input id="f_edoc" value="${e?e.document:''}"></div>
+        <div class="field"><label>Teléfono</label><input id="f_ephone" value="${e?e.phone:''}"></div>
+        <div class="field"><label>Correo</label><input id="f_eemail" value="${e?e.email:''}"></div>
+        <div class="field"><label>Turno</label><input id="f_eshift" value="${e?e.shift:'06:00 - 14:00'}"></div>
+        <div class="field"><label>Piso asignado</label><select id="f_efloor">${DB.floors.map(f=>`<option value="${f.number}" ${e&&e.floor===f.number?'selected':''}>${f.name}</option>`).join('')}</select></div>
+        <div class="field"><label>Estado</label><select id="f_estatus">${['ACTIVA','INACTIVA','EN DESCANSO','EN TURNO'].map(s=>`<option ${e&&e.status===s?'selected':''}>${s}</option>`).join('')}</select></div>
+        <div class="field"><label>Foto</label><input id="f_ephoto" type="file" accept="image/*"></div>
+        <div class="field">
+          <label>${e?'Nueva contraseña de acceso (dejar en blanco para no cambiarla)':'Contraseña de acceso'}</label>
+          <input id="f_epass" type="password" placeholder="${e?'••••••••':'Para ingresar con cédula o correo'}">
+        </div>
+      </div>
+      <div class="small muted" style="margin:-4px 0 14px">El colaborador inicia sesión con su <b>cédula</b> o <b>correo</b> y esta contraseña.</div>
+      <div style="display:flex;justify-content:flex-end;gap:10px">
+        ${e?`<button class="btn btn-danger" onclick="Admin.deleteEmp('${e.id}')">Eliminar</button>`:''}
+        <button class="btn btn-primary" onclick="Admin.saveEmp('${e?e.id:''}')">Guardar</button>
+      </div>`;
+    openModal(html);
+  },
+  saveEmp(id){
+    const name = document.getElementById('f_ename').value.trim();
+    if(!name){ toast('Ingrese el nombre','err'); return; }
+    const pass = document.getElementById('f_epass').value;
+    const data = {
+      name, document:document.getElementById('f_edoc').value, phone:document.getElementById('f_ephone').value,
+      email:document.getElementById('f_eemail').value, shift:document.getElementById('f_eshift').value,
+      floor:parseInt(document.getElementById('f_efloor').value), status:document.getElementById('f_estatus').value, position:'Housekeeping'
+    };
+    const fileInput = document.getElementById('f_ephoto');
+    const finish = (photo)=>{
+      let savedEmp;
+      if(id){ savedEmp = empById(id); Object.assign(savedEmp,data); if(photo) savedEmp.photo=photo; if(pass) savedEmp.password=pass; }
+      else { savedEmp = { id:generateId('EMP'), photo:photo||null, password:pass||null, ...data }; DB.employees.push(savedEmp); }
+      saveData(); Cloud.upsert('employees', savedEmp); closeModal(); Admin.viewEmployees(); toast('Colaborador guardado','ok');
+    };
+    if(fileInput.files && fileInput.files[0]){
+      const reader = new FileReader(); reader.onload = ()=>finish(reader.result); reader.readAsDataURL(fileInput.files[0]);
+    } else finish(null);
+  },
+  deleteEmp(id){ DB.employees = DB.employees.filter(e=>e.id!==id); saveData(); Cloud.remove('employees', id); closeModal(); Admin.viewEmployees(); },
+
+  /* -------- ADMINISTRADORES -------- */
+  viewAdmins(){
+    const admins = DB.users.filter(u=>u.role==='ADMIN');
+    let html = `<div class="topbar"><div><h1>Administradores</h1><div class="sub">${admins.length} administrador(es) registrados</div></div>
+      <button class="btn btn-primary" onclick="Admin.adminForm()">+ Nuevo administrador</button></div>`;
+    html += `<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Usuario</th><th></th></tr></thead><tbody>`;
+    admins.forEach(u=>{
+      html += `<tr onclick="Admin.adminForm('${u.username}')">
+        <td><b>${escapeHtml(u.name)}</b></td><td>${escapeHtml(u.username)}</td>
+        <td><button class="btn btn-sm" onclick="event.stopPropagation();Admin.adminForm('${u.username}')">Editar</button></td>
+      </tr>`;
+    });
+    if(!admins.length) html += `<tr><td colspan="3" class="empty-state">Sin administradores</td></tr>`;
+    html += `</tbody></table></div>`;
+    document.getElementById('adminView').innerHTML = html;
+  },
+  adminForm(username){
+    const u = username ? DB.users.find(x=>x.username===username && x.role==='ADMIN') : null;
+    const html = `<h2>${u?'Editar':'Nuevo'} administrador</h2>
+      <div class="field"><label>Nombre completo</label><input id="f_aname" value="${u?escapeHtml(u.name):''}"></div>
+      <div class="field"><label>Usuario</label><input id="f_ausername" value="${u?escapeHtml(u.username):''}" ${u?'disabled':''}></div>
+      <div class="field"><label>${u?'Nueva contraseña (dejar en blanco para no cambiarla)':'Contraseña'}</label><input id="f_apass" type="password" placeholder="${u?'••••••••':''}"></div>
+      <div style="display:flex;justify-content:flex-end;gap:10px">
+        ${u?`<button class="btn btn-danger" onclick="Admin.deleteAdmin('${u.username}')">Eliminar</button>`:''}
+        <button class="btn btn-primary" onclick="Admin.saveAdmin('${u?u.username:''}')">Guardar</button>
+      </div>`;
+    openModal(html);
+  },
+  saveAdmin(originalUsername){
+    const name = document.getElementById('f_aname').value.trim();
+    const username = document.getElementById('f_ausername').value.trim();
+    const pass = document.getElementById('f_apass').value;
+    if(!name || !username){ toast('Ingrese nombre y usuario','err'); return; }
+    if(originalUsername){
+      const u = DB.users.find(x=>x.username===originalUsername && x.role==='ADMIN');
+      u.name = name;
+      if(pass) u.password = pass;
+      saveData(); Cloud.upsert('users', u); closeModal(); Admin.viewAdmins(); toast('Administrador actualizado','ok');
+      logHistory(Auth.current().username,'ADMINISTRADOR','Administrador '+username+' actualizado.');
+    } else {
+      if(DB.users.some(x=>x.username===username)){ toast('Ese nombre de usuario ya existe','err'); return; }
+      if(!pass){ toast('Ingrese una contraseña','err'); return; }
+      const newAdmin = { username, password:pass, role:'ADMIN', name };
+      DB.users.push(newAdmin);
+      saveData(); Cloud.upsert('users', newAdmin); closeModal(); Admin.viewAdmins(); toast('Administrador creado','ok');
+      logHistory(Auth.current().username,'ADMINISTRADOR','Administrador '+username+' creado.');
+    }
+  },
+  deleteAdmin(username){
+    const admins = DB.users.filter(x=>x.role==='ADMIN');
+    if(admins.length<=1){ toast('Debe existir al menos un administrador','err'); return; }
+    const current = Auth.current();
+    if(current && current.username===username){ toast('No puede eliminar su propio usuario mientras tiene la sesión iniciada','err'); return; }
+    DB.users = DB.users.filter(x=>!(x.username===username && x.role==='ADMIN'));
+    saveData(); Cloud.remove('users', username, 'username'); closeModal(); Admin.viewAdmins(); toast('Administrador eliminado','ok');
+    logHistory(current?current.username:'sistema','ADMINISTRADOR','Administrador '+username+' eliminado.');
+  },
+  empDetail(id){
+    const e = empById(id);
+    const sessions = DB.cleaningSessions.filter(s=>s.employeeId===id && s.status==='FINALIZADA');
+    const durations = sessions.map(s=>s.durationSeconds/60);
+    const total = durations.reduce((a,b)=>a+b,0);
+    const avg = durations.length? total/durations.length:0;
+    const max = durations.length? Math.max(...durations):0;
+    const min = durations.length? Math.min(...durations):0;
+    const special = sessions.filter(s=>roomById(s.roomId)?.type==='ESPECIAL').length;
+    const html = `<h2>${e.name}</h2>
+      <div class="kv"><b>Documento</b><span>${e.document}</span></div>
+      <div class="kv"><b>Estado</b><span>${e.status}</span></div>
+      <div class="divider"></div>
+      <div class="kv"><b>Habitaciones limpiadas</b><span>${sessions.length}</span></div>
+      <div class="kv"><b>Tiempo total</b><span>${Timer.formatLong(total*60)}</span></div>
+      <div class="kv"><b>Tiempo promedio</b><span>${avg.toFixed(1)} min</span></div>
+      <div class="kv"><b>Tiempo mínimo</b><span>${min.toFixed(1)} min</span></div>
+      <div class="kv"><b>Tiempo máximo</b><span>${max.toFixed(1)} min</span></div>
+      <div class="kv"><b>Habitaciones especiales</b><span>${special}</span></div>
+      <div class="kv"><b>Última actividad</b><span>${sessions[0]? fmtDateTime(sessions.sort((a,b)=>new Date(b.endTime)-new Date(a.endTime))[0].endTime):'-'}</span></div>`;
+    openModal(html);
+  },
+
+  /* -------- ASSIGNMENTS -------- */
+  viewAssignments(){
+    let html = `<div class="topbar"><div><h1>Asignaciones</h1><div class="sub">Habitaciones asignadas por colaborador</div></div></div>`;
+    DB.employees.forEach(e=>{
+      const asg = DB.assignments.find(a=>a.employeeId===e.id) || { roomIds:[] };
+      const rooms = asg.roomIds.map(id=>roomById(id)).filter(Boolean).sort((a,b)=>a.number-b.number);
+      html += `<div class="card" style="margin-bottom:12px">
+        <div class="flex-between"><b>${e.name}</b><button class="btn btn-sm btn-primary" onclick="Admin.assignForm('${e.id}')">Reasignar</button></div>
+        <div class="tag-row" style="margin-top:10px">${rooms.length? rooms.map(r=>`<span class="badge b-blue">${r.number}</span>`).join(''):'<span class="muted small">Sin habitaciones asignadas</span>'}</div>
+      </div>`;
+    });
+    document.getElementById('adminView').innerHTML = html;
+  },
+  assignForm(employeeId){
+    const asg = DB.assignments.find(a=>a.employeeId===employeeId) || { roomIds:[] };
+    const html = `<h2>Asignar habitaciones · ${empById(employeeId).name}</h2>
+      <div class="field"><label>Selecciona las habitaciones (Ctrl/Cmd + clic para varias)</label>
+      <select id="f_assignRooms" multiple size="12" style="height:260px">
+        ${DB.rooms.sort((a,b)=>a.number-b.number).map(r=>`<option value="${r.id}" ${asg.roomIds.includes(r.id)?'selected':''}>${r.number} · Piso ${r.floor} · ${r.category}</option>`).join('')}
+      </select></div>
+      <div style="display:flex;justify-content:flex-end"><button class="btn btn-primary" onclick="Admin.saveAssign('${employeeId}')">Guardar asignación</button></div>`;
+    openModal(html);
+  },
+  saveAssign(employeeId){
+    const sel = Array.from(document.getElementById('f_assignRooms').selectedOptions).map(o=>o.value);
+    let asg = DB.assignments.find(a=>a.employeeId===employeeId);
+    if(asg) asg.roomIds = sel; else { asg = { id:generateId('ASG'), employeeId, roomIds:sel }; DB.assignments.push(asg); }
+    saveData(); Cloud.upsert('assignments', asg); closeModal(); Admin.viewAssignments(); toast('Asignación guardada','ok');
+  },
+
+  /* -------- CLEANINGS (todos los registros) -------- */
+  viewCleanings(){
+    let html = `<div class="topbar"><div><h1>Limpiezas</h1><div class="sub">Todos los registros de limpieza</div></div>
+      <div class="tag-row"><button class="btn btn-sm" onclick="Reports.exportCSV()">⬇️ CSV</button></div></div>`;
+    html += `<div class="toolbar">
+      <input id="clnSearch" placeholder="Buscar habitación/colaborador..." oninput="Admin.viewCleanings()">
+      <select id="clnEmp" onchange="Admin.viewCleanings()"><option value="">Todos los colaboradores</option>${DB.employees.map(e=>`<option value="${e.id}">${e.name}</option>`).join('')}</select>
+      <select id="clnFloor" onchange="Admin.viewCleanings()"><option value="">Todos los pisos</option>${DB.floors.map(f=>`<option value="${f.number}">${f.name}</option>`).join('')}</select>
+      <select id="clnStatus" onchange="Admin.viewCleanings()"><option value="">Todos los estados</option><option value="EN_LIMPIEZA">En limpieza</option><option value="FINALIZADA">Finalizada</option></select>
+      <input type="date" id="clnFrom" onchange="Admin.viewCleanings()"><input type="date" id="clnTo" onchange="Admin.viewCleanings()">
+    </div>`;
+    const search=(document.getElementById('clnSearch')?.value||'').toLowerCase();
+    const empF=document.getElementById('clnEmp')?.value||'', floorF=document.getElementById('clnFloor')?.value||'', statF=document.getElementById('clnStatus')?.value||'';
+    const from=document.getElementById('clnFrom')?.value, to=document.getElementById('clnTo')?.value;
+    let list = DB.cleaningSessions.slice().sort((a,b)=>new Date(b.startTime)-new Date(a.startTime)).filter(s=>{
+      const r=roomById(s.roomId), e=empById(s.employeeId);
+      if(search && !(String(r?.number).includes(search) || (e?.name||'').toLowerCase().includes(search))) return false;
+      if(empF && s.employeeId!==empF) return false;
+      if(floorF && String(r?.floor)!==floorF) return false;
+      if(statF && s.status!==statF) return false;
+      if(from && new Date(s.startTime) < new Date(from)) return false;
+      if(to && new Date(s.startTime) > new Date(to+'T23:59:59')) return false;
+      return true;
+    });
+    html += `<div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Hab.</th><th>Piso</th><th>Colaborador</th><th>Inicio</th><th>Fin</th><th>Estimado</th><th>Real</th><th>Diferencia</th><th>Estado</th></tr></thead><tbody>`;
+    list.forEach(s=>{
+      const r=roomById(s.roomId), e=empById(s.employeeId);
+      const real = s.status==='FINALIZADA'? Timer.format(s.durationSeconds) : Timer.format(Timer.elapsedSeconds(s.startTime));
+      const diffMin = s.status==='FINALIZADA'? Math.round(s.diffSeconds/60) : Math.round((Timer.elapsedSeconds(s.startTime)/60)-s.estimatedMinutes);
+      const ts = timeStatus(diffMin*60, DB.settings);
+      html += `<tr onclick="Admin.sessionDetail('${s.id}')">
+        <td>${fmtDate(s.startTime)}</td><td><b>${r?r.number:'-'}</b></td><td>${r?r.floor:'-'}</td><td>${e?e.name:'-'}</td>
+        <td>${fmtTime(s.startTime)}</td><td>${s.endTime?fmtTime(s.endTime):'-'}</td>
+        <td>${s.estimatedMinutes} min</td><td>${real}</td>
+        <td><span class="badge ${ts.cls}">${ts.dot} ${diffMin>=0?'+':''}${diffMin} min</span></td>
+        <td>${s.status==='EN_LIMPIEZA'?'<span class="badge b-violet">EN LIMPIEZA</span>':'<span class="badge b-green">FINALIZADA</span>'}</td>
+      </tr>`;
+    });
+    if(!list.length) html += `<tr><td colspan="10" class="empty-state">Sin resultados</td></tr>`;
+    html += `</tbody></table></div>`;
+    document.getElementById('adminView').innerHTML = html;
+  },
+  sessionDetail(id){
+    const s = DB.cleaningSessions.find(x=>x.id===id);
+    const r = roomById(s.roomId), e = empById(s.employeeId);
+    const incident = DB.incidents.find(i=>i.sessionId===s.id);
+    const diffMin = s.status==='FINALIZADA'? Math.round(s.diffSeconds/60) : Math.round((Timer.elapsedSeconds(s.startTime)/60)-s.estimatedMinutes);
+    const ts = timeStatus(diffMin*60, DB.settings);
+    let html = `<h2>Detalle de limpieza · Habitación ${r?r.number:'-'}</h2>
+      <div class="kv"><b>Piso / categoría</b><span>${r?r.floor:'-'} · ${r?r.category:'-'}</span></div>
+      <div class="kv"><b>Colaborador</b><span>${e?e.name:'-'}</span></div>
+      <div class="divider"></div>
+      <div class="kv"><b>Fecha</b><span>${fmtDate(s.startTime)}</span></div>
+      <div class="kv"><b>Hora inicio</b><span>${fmtTime(s.startTime)}</span></div>
+      <div class="kv"><b>GPS inicio</b><span>${s.gpsStart? s.gpsStart.lat.toFixed(5)+', '+s.gpsStart.lng.toFixed(5):'No disponible'}</span></div>
+      <div class="divider"></div>
+      <div class="kv"><b>Hora fin</b><span>${s.endTime?fmtTime(s.endTime):'En curso'}</span></div>
+      <div class="kv"><b>GPS final</b><span>${s.gpsEnd? s.gpsEnd.lat.toFixed(5)+', '+s.gpsEnd.lng.toFixed(5):'No disponible'}</span></div>
+      <div class="divider"></div>
+      <div class="kv"><b>Tiempo estimado</b><span>${Timer.format(s.estimatedMinutes*60)}</span></div>
+      <div class="kv"><b>Tiempo real</b><span>${s.status==='FINALIZADA'?Timer.format(s.durationSeconds):Timer.format(Timer.elapsedSeconds(s.startTime))}</span></div>
+      <div class="kv"><b>Diferencia</b><span><span class="badge ${ts.cls}">${ts.dot} ${diffMin>=0?'+':''}${diffMin} min</span></span></div>`;
+    if(incident){
+      html += `<div class="divider"></div><div class="kv"><b>Novedad</b><span>${incident.type}</span></div>
+        <div class="small muted" style="margin:6px 0">${escapeHtml(incident.description)}</div>
+        ${incident.photo?`<img class="photo-preview" src="${incident.photo}">`:''}`;
+    }
+    if(s.gpsStart && window.L){
+      html += `<div class="divider"></div><div id="sessMap" style="height:220px;border-radius:12px;overflow:hidden"></div>`;
+    }
+    openModal(html, true);
+    if(s.gpsStart && window.L){
+      setTimeout(()=>{
+        const map = L.map('sessMap').setView([s.gpsStart.lat, s.gpsStart.lng], 15);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
+        L.marker([s.gpsStart.lat,s.gpsStart.lng]).addTo(map).bindPopup('Inicio');
+        if(s.gpsEnd) L.marker([s.gpsEnd.lat,s.gpsEnd.lng]).addTo(map).bindPopup('Fin');
+      },50);
+    }
+  },
+
+  /* -------- TIMES (consolidados) -------- */
+  viewTimes(){
+    let html = `<div class="topbar"><div><h1>Tiempos</h1><div class="sub">Consolidado por habitación y por colaborador</div></div></div>`;
+    // por habitación con mayor promedio / mayor máximo
+    const roomStats = DB.rooms.map(r=>{
+      const s = DB.cleaningSessions.filter(x=>x.roomId===r.id && x.status==='FINALIZADA');
+      const durs = s.map(x=>x.durationSeconds/60);
+      const avg = durs.length? durs.reduce((a,b)=>a+b,0)/durs.length:0;
+      const max = durs.length? Math.max(...durs):0, min = durs.length? Math.min(...durs):0;
+      return { r, count:s.length, avg, max, min, diff: avg - r.estimatedMinutes };
+    }).filter(x=>x.count>0);
+    const topAvg = roomStats.slice().sort((a,b)=>b.avg-a.avg)[0];
+    const topMax = roomStats.slice().sort((a,b)=>b.max-a.max)[0];
+    if(topAvg || topMax){
+      html += `<div class="cards-grid">`;
+      if(topAvg) html += `<div class="card stat-card"><div class="lab">Mayor tiempo promedio</div><div class="val">Hab. ${topAvg.r.number}</div><div class="small muted">${topAvg.avg.toFixed(1)} min prom. (estimado ${topAvg.r.estimatedMinutes} min)</div></div>`;
+      if(topMax) html += `<div class="card stat-card"><div class="lab">Mayor tiempo máximo registrado</div><div class="val">Hab. ${topMax.r.number}</div><div class="small muted">${topMax.max.toFixed(1)} min</div></div>`;
+      html += `</div>`;
+    }
+    html += `<div class="section-title">⏱️ Tiempos por habitación</div>
+      <div class="table-wrap"><table><thead><tr><th>Hab.</th><th>Piso</th><th>Tipo</th><th># Limpiezas</th><th>Promedio</th><th>Mínimo</th><th>Máximo</th><th>Estimado</th><th>Diferencia</th></tr></thead><tbody>`;
+    roomStats.sort((a,b)=>b.avg-a.avg).forEach(x=>{
+      const ts = timeStatus(x.diff*60, DB.settings);
+      html += `<tr><td><b>${x.r.number}</b></td><td>${x.r.floor}</td><td>${x.r.category}</td><td>${x.count}</td>
+        <td>${x.avg.toFixed(1)} min</td><td>${x.min.toFixed(1)} min</td><td>${x.max.toFixed(1)} min</td><td>${x.r.estimatedMinutes} min</td>
+        <td><span class="badge ${ts.cls}">${x.diff>=0?'+':''}${x.diff.toFixed(1)} min</span></td></tr>`;
+    });
+    if(!roomStats.length) html += `<tr><td colspan="9" class="empty-state">Sin datos</td></tr>`;
+    html += `</tbody></table></div>`;
+
+    html += `<div class="section-title">🧑‍🔧 Productividad por colaborador</div>
+      <div class="table-wrap"><table><thead><tr><th>Colaborador</th><th>Hab. limpiadas</th><th>T. total</th><th>Promedio</th><th>Mínimo</th><th>Máximo</th><th>Especiales</th><th>Novedades</th><th>Última actividad</th></tr></thead><tbody>`;
+    DB.employees.forEach(e=>{
+      const s = DB.cleaningSessions.filter(x=>x.employeeId===e.id && x.status==='FINALIZADA');
+      const durs = s.map(x=>x.durationSeconds/60);
+      const total = durs.reduce((a,b)=>a+b,0);
+      const avg = durs.length? total/durs.length:0, max=durs.length?Math.max(...durs):0, min=durs.length?Math.min(...durs):0;
+      const special = s.filter(x=>roomById(x.roomId)?.type==='ESPECIAL').length;
+      const incid = DB.incidents.filter(i=>i.employeeId===e.id).length;
+      const last = s.sort((a,b)=>new Date(b.endTime)-new Date(a.endTime))[0];
+      html += `<tr onclick="Admin.empDetail('${e.id}')"><td><b>${e.name}</b></td><td>${s.length}</td><td>${Timer.formatLong(total*60)}</td>
+        <td>${avg.toFixed(1)} min</td><td>${min.toFixed(1)} min</td><td>${max.toFixed(1)} min</td><td>${special}</td><td>${incid}</td>
+        <td>${last?fmtDateTime(last.endTime):'-'}</td></tr>`;
+    });
+    html += `</tbody></table></div>`;
+    document.getElementById('adminView').innerHTML = html;
+  },
+
+  /* -------- INCIDENTS -------- */
+  viewIncidents(){
+    let html = `<div class="topbar"><div><h1>Novedades</h1><div class="sub">${DB.incidents.length} novedades reportadas</div></div></div>`;
+    html += `<div class="table-wrap"><table><thead><tr><th></th><th>Fecha</th><th>Hab.</th><th>Colaborador</th><th>Tipo</th><th>Descripción</th></tr></thead><tbody>`;
+    DB.incidents.slice().sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).forEach(i=>{
+      const r=roomById(i.roomId), e=empById(i.employeeId);
+      html += `<tr onclick="Admin.incidentDetail('${i.id}')">
+        <td>${i.photo?`<img class="thumb" src="${i.photo}">`:'—'}</td>
+        <td>${fmtDateTime(i.timestamp)}</td><td><b>${r?r.number:'-'}</b></td><td>${e?e.name:'-'}</td>
+        <td><span class="badge b-red">${i.type}</span></td><td>${escapeHtml((i.description||'').slice(0,60))}</td></tr>`;
+    });
+    if(!DB.incidents.length) html += `<tr><td colspan="6" class="empty-state">Sin novedades registradas</td></tr>`;
+    html += `</tbody></table></div>`;
+    document.getElementById('adminView').innerHTML = html;
+  },
+  incidentDetail(id){
+    const i = DB.incidents.find(x=>x.id===id); const r=roomById(i.roomId), e=empById(i.employeeId);
+    openModal(`<h2>Novedad · Habitación ${r?r.number:'-'}</h2>
+      <div class="kv"><b>Colaborador</b><span>${e?e.name:'-'}</span></div>
+      <div class="kv"><b>Tipo</b><span>${i.type}</span></div>
+      <div class="kv"><b>Fecha</b><span>${fmtDateTime(i.timestamp)}</span></div>
+      <div class="kv"><b>GPS</b><span>${i.gps? i.gps.lat.toFixed(5)+', '+i.gps.lng.toFixed(5):'No disponible'}</span></div>
+      <div class="divider"></div>
+      <p class="small">${escapeHtml(i.description||'')}</p>
+      ${i.photo?`<img class="photo-preview" src="${i.photo}" style="max-height:320px">`:''}`);
+  },
+
+  /* -------- PHOTOS -------- */
+  viewPhotos(){
+    let html = `<div class="topbar"><div><h1>Fotografías</h1><div class="sub">Evidencia fotográfica de novedades</div></div></div>`;
+    const withPhoto = DB.incidents.filter(i=>i.photo);
+    html += `<div class="cards-grid">`;
+    withPhoto.forEach(i=>{
+      const r=roomById(i.roomId), e=empById(i.employeeId);
+      html += `<div class="card" style="padding:10px;cursor:pointer" onclick="Admin.incidentDetail('${i.id}')">
+        <img src="${i.photo}" style="width:100%;height:120px;object-fit:cover;border-radius:10px">
+        <div class="small" style="margin-top:8px"><b>Hab. ${r?r.number:'-'}</b></div>
+        <div class="small muted">${e?e.name:'-'} · ${fmtDate(i.timestamp)}</div>
+      </div>`;
+    });
+    if(!withPhoto.length) html += `<div class="empty-state">No hay fotografías registradas</div>`;
+    html += `</div>`;
+    document.getElementById('adminView').innerHTML = html;
+  },
+
+  /* -------- MAP -------- */
+  viewMap(){
+    document.getElementById('adminView').innerHTML = `<div class="topbar"><div><h1>Mapa GPS</h1><div class="sub">Ubicación de inicios y finalizaciones de limpieza</div></div></div>
+      <div class="card" style="padding:6px"><div id="opMap" style="height:520px;border-radius:12px"></div></div>`;
+    setTimeout(()=>{
+      const withGps = DB.cleaningSessions.filter(s=>s.gpsStart);
+      const center = withGps.length? [withGps[0].gpsStart.lat, withGps[0].gpsStart.lng] : [11.2408,-74.2110];
+      const map = L.map('opMap').setView(center, 14);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
+      withGps.forEach(s=>{
+        const r=roomById(s.roomId), e=empById(s.employeeId);
+        L.marker([s.gpsStart.lat,s.gpsStart.lng]).addTo(map)
+          .bindPopup(`<b>Hab. ${r?r.number:'-'}</b><br>${e?e.name:'-'}<br>Inicio: ${fmtTime(s.startTime)}<br>Estado: ${s.status}`);
+        if(s.gpsEnd) L.circleMarker([s.gpsEnd.lat,s.gpsEnd.lng],{radius:6,color:'#22c55e'}).addTo(map)
+          .bindPopup(`<b>Hab. ${r?r.number:'-'}</b><br>Fin: ${fmtTime(s.endTime)}`);
+      });
+      DB.incidents.filter(i=>i.gps).forEach(i=>{
+        const r = roomById(i.roomId);
+        L.marker([i.gps.lat,i.gps.lng],{}).addTo(map).bindPopup(`⚠️ Novedad · Hab. ${r?r.number:'-'}<br>${i.type}`);
+      });
+    },50);
+  },
+
+  /* -------- HISTORY -------- */
+  viewHistory(){
+    let html = `<div class="topbar"><div><h1>Historial</h1><div class="sub">Registro de eventos del sistema</div></div></div>`;
+    html += `<div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Usuario</th><th>Evento</th><th>Descripción</th></tr></thead><tbody>`;
+    DB.history.slice(0,200).forEach(h=>{
+      html += `<tr><td>${fmtDateTime(h.timestamp)}</td><td>${h.user}</td><td><span class="badge b-blue">${h.event}</span></td><td>${escapeHtml(h.description)}</td></tr>`;
+    });
+    if(!DB.history.length) html += `<tr><td colspan="4" class="empty-state">Sin eventos</td></tr>`;
+    html += `</tbody></table></div>`;
+    document.getElementById('adminView').innerHTML = html;
+  },
+
+  /* -------- REPORTS -------- */
+  viewReports(){
+    document.getElementById('adminView').innerHTML = `<div class="topbar"><div><h1>Reportes</h1><div class="sub">Exportación de información</div></div></div>
+      <div class="card" style="max-width:480px">
+        <p class="small muted" style="margin-bottom:16px">Genera un archivo CSV con todos los registros de limpieza (fecha, colaborador, habitación, tiempos, GPS, estado y novedades) o imprime el reporte actual.</p>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <button class="btn btn-primary" onclick="Reports.exportCSV()">⬇️ Exportar CSV</button>
+          <button class="btn" onclick="window.print()">🖨️ Imprimir</button>
+          <button class="btn" onclick="Admin.go('cleanings')">🧾 Ver todos los registros</button>
+        </div>
+      </div>`;
+  },
+
+  /* -------- SETTINGS -------- */
+  viewSettings(){
+    const s = DB.settings;
+    document.getElementById('adminView').innerHTML = `<div class="topbar"><div><h1>Configuración</h1><div class="sub">Parámetros generales del sistema</div></div></div>
+      <div class="card" style="max-width:560px">
+        <div class="grid2">
+          <div class="field"><label>Tiempo estándar habitación normal (min)</label><input id="s_normal" type="number" value="${s.normalMinutes}"></div>
+          <div class="field"><label>Tiempo estándar habitación especial (min)</label><input id="s_special" type="number" value="${s.specialMinutes}"></div>
+          <div class="field"><label>Tolerancia (min)</label><input id="s_tol" type="number" value="${s.tolerance}"></div>
+          <div class="field"><label>Límite amarillo (min por encima)</label><input id="s_yellow" type="number" value="${s.yellowLimit}"></div>
+          <div class="field"><label>Límite rojo (min por encima)</label><input id="s_red" type="number" value="${s.redLimit}"></div>
+        </div>
+        <div class="field"><label><input type="checkbox" id="s_gps" ${s.gpsRequired?'checked':''}> GPS obligatorio al iniciar/finalizar</label></div>
+        <div class="field"><label><input type="checkbox" id="s_photo" ${s.photoRequired?'checked':''}> Fotografía obligatoria para reportar novedad</label></div>
+        <button class="btn btn-primary" onclick="Admin.saveSettings()">Guardar configuración</button>
+        <div class="divider"></div>
+        <button class="btn btn-danger" style="width:100%" onclick="if(confirm('¿Borrar TODOS los datos (habitaciones, colaboradores, historial, etc.)? Solo quedará el administrador principal (admin / 1234). Esta acción no se puede deshacer.')) resetDatabase()">Borrar todos los datos</button>
+      </div>`;
+  },
+  saveSettings(){
+    DB.settings.normalMinutes = parseInt(document.getElementById('s_normal').value)||30;
+    DB.settings.specialMinutes = parseInt(document.getElementById('s_special').value)||50;
+    DB.settings.tolerance = parseInt(document.getElementById('s_tol').value)||5;
+    DB.settings.yellowLimit = parseInt(document.getElementById('s_yellow').value)||10;
+    DB.settings.redLimit = parseInt(document.getElementById('s_red').value)||10;
+    DB.settings.gpsRequired = document.getElementById('s_gps').checked;
+    DB.settings.photoRequired = document.getElementById('s_photo').checked;
+    saveData(); Cloud.upsert('settings', DB.settings); toast('Configuración guardada','ok');
+  }
+};
+
+/* ==================== CHARTS ==================== */
+let chartInstances = {};
+const Charts = {
+  destroy(id){ if(chartInstances[id]){ chartInstances[id].destroy(); delete chartInstances[id]; } },
+  renderAll(){
+    const gridColor='rgba(255,255,255,.06)', textColor='#9aa3c0';
+    Chart.defaults.color = textColor; Chart.defaults.borderColor = gridColor;
+
+    // by day (last 7)
+    const days = []; for(let i=6;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); days.push(d); }
+    const byDay = days.map(d=> DB.cleaningSessions.filter(s=>s.endTime && new Date(s.endTime).toDateString()===d.toDateString()).length);
+    Charts.destroy('d1');
+    chartInstances.d1 = new Chart(document.getElementById('chartByDay'), { type:'bar',
+      data:{ labels:days.map(d=>d.toLocaleDateString('es-CO',{weekday:'short',day:'numeric'})), datasets:[{ label:'Limpiezas', data:byDay, backgroundColor:'#00e5ff' }]},
+      options:{ plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}} } });
+
+    // by room top8 avg
+    const roomAgg = {};
+    DB.cleaningSessions.filter(s=>s.status==='FINALIZADA').forEach(s=>{
+      roomAgg[s.roomId] = roomAgg[s.roomId]||[]; roomAgg[s.roomId].push(s.durationSeconds/60);
+    });
+    let roomList = Object.entries(roomAgg).map(([id,arr])=>({ room:roomById(id), avg: arr.reduce((a,b)=>a+b,0)/arr.length })).filter(x=>x.room)
+      .sort((a,b)=>b.avg-a.avg).slice(0,8);
+    Charts.destroy('d2');
+    chartInstances.d2 = new Chart(document.getElementById('chartByRoom'), { type:'bar',
+      data:{ labels:roomList.map(x=>x.room.number), datasets:[{ label:'Min. promedio', data:roomList.map(x=>x.avg.toFixed(1)), backgroundColor:'#7c3aed' }]},
+      options:{ indexAxis:'y', plugins:{legend:{display:false}} } });
+
+    // by employee avg
+    let empList = DB.employees.map(e=>{
+      const arr = DB.cleaningSessions.filter(s=>s.employeeId===e.id && s.status==='FINALIZADA').map(s=>s.durationSeconds/60);
+      return { name:e.name.split(' ')[0], avg: arr.length? arr.reduce((a,b)=>a+b,0)/arr.length:0 };
+    }).filter(x=>x.avg>0);
+    Charts.destroy('d3');
+    chartInstances.d3 = new Chart(document.getElementById('chartByEmp'), { type:'bar',
+      data:{ labels:empList.map(x=>x.name), datasets:[{ label:'Min. promedio', data:empList.map(x=>x.avg.toFixed(1)), backgroundColor:'#ec4899' }]},
+      options:{ plugins:{legend:{display:false}} } });
+
+    // special vs normal
+    const specialCount = DB.rooms.filter(r=>r.type==='ESPECIAL').length, normalCount = DB.rooms.filter(r=>r.type==='NORMAL').length;
+    Charts.destroy('d4');
+    chartInstances.d4 = new Chart(document.getElementById('chartSpecial'), { type:'doughnut',
+      data:{ labels:['Especiales','Normales'], datasets:[{ data:[specialCount,normalCount], backgroundColor:['#7c3aed','#00e5ff'] }]} });
+
+    // top 6 longest
+    let top6 = Object.entries(roomAgg).map(([id,arr])=>({ room:roomById(id), max:Math.max(...arr) })).filter(x=>x.room)
+      .sort((a,b)=>b.max-a.max).slice(0,6);
+    Charts.destroy('d5');
+    chartInstances.d5 = new Chart(document.getElementById('chartTop'), { type:'bar',
+      data:{ labels:top6.map(x=>'Hab. '+x.room.number), datasets:[{ label:'Min. máximo', data:top6.map(x=>x.max.toFixed(1)), backgroundColor:'#ef4444' }]},
+      options:{ plugins:{legend:{display:false}} } });
+
+    // by floor
+    let floorList = DB.floors.sort((a,b)=>a.number-b.number).map(f=>({
+      name:f.name, count: DB.cleaningSessions.filter(s=>roomById(s.roomId)?.floor===f.number).length
+    }));
+    Charts.destroy('d6');
+    chartInstances.d6 = new Chart(document.getElementById('chartFloor'), { type:'line',
+      data:{ labels:floorList.map(x=>x.name), datasets:[{ label:'Limpiezas', data:floorList.map(x=>x.count), borderColor:'#00e5ff', backgroundColor:'rgba(0,229,255,.15)', fill:true, tension:.35 }]},
+      options:{ plugins:{legend:{display:false}} } });
+  }
+};
+
+/* ==================== REPORTS (CSV) ==================== */
+const Reports = {
+  exportCSV(){
+    const header = ['Fecha','Colaborador','Habitacion','Piso','Inicio','Fin','Duracion_min','Tiempo_esperado_min','Diferencia_min','Lat_inicio','Lng_inicio','Lat_final','Lng_final','Estado','Novedad'];
+    const rows = DB.cleaningSessions.map(s=>{
+      const r = roomById(s.roomId), e = empById(s.employeeId);
+      const incident = DB.incidents.find(i=>i.sessionId===s.id);
+      return [
+        fmtDate(s.startTime), e?e.name:'', r?r.number:'', r?r.floor:'',
+        fmtTime(s.startTime), s.endTime?fmtTime(s.endTime):'',
+        s.status==='FINALIZADA'? (s.durationSeconds/60).toFixed(1) : (Timer.elapsedSeconds(s.startTime)/60).toFixed(1),
+        s.estimatedMinutes, s.status==='FINALIZADA'? (s.diffSeconds/60).toFixed(1):'',
+        s.gpsStart?s.gpsStart.lat:'', s.gpsStart?s.gpsStart.lng:'', s.gpsEnd?s.gpsEnd.lat:'', s.gpsEnd?s.gpsEnd.lng:'',
+        s.status, incident? incident.type:''
+      ].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',');
+    });
+    const csv = [header.join(','), ...rows].join('\n');
+    const blob = new Blob(["\uFEFF"+csv], { type:'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'cashless_housekeeping_reporte.csv'; a.click();
+    URL.revokeObjectURL(url);
+    toast('CSV exportado','ok');
+  }
+};
+
+/* ==================== EMPLOYEE MODULE ==================== */
+const Employee = {
+  currentSessionRoomInfo:null,
+  render(){
+    Timer.stop(); QR.close();
+    const sess = Auth.current();
+    const emp = DB.employees.find(e=>e.id===sess.employeeId) || DB.employees[0];
+    const active = findActiveSessionByEmployee(emp.id);
+    let html = `<div class="emp-head">
+      <div class="logo"><div class="logo-badge" style="width:32px;height:32px;font-size:13px">CC</div><div class="logo-text"><b style="font-size:12px">CASHLESS</b><span>HOUSEKEEPING</span></div></div>
+      <button class="btn btn-sm" onclick="App.logout()">Salir</button>
+    </div>
+    <div class="emp-hello">Hola, ${emp.name.split(' ')[0]} 👋</div>
+    <div class="emp-shift">Turno activo: ${emp.shift}</div>`;
+
+    if(active){
+      html += Employee.activeCard(active);
+    } else {
+      html += `<div class="card status-card">
+        <div class="scan-empty">
+          <div class="ic">🧹</div>
+          Escanee el QR o acerque el teléfono al NFC de la habitación para comenzar.
+        </div>
+        <div class="scan-btns">
+          <button class="btn btn-primary" onclick="Employee.openScan('qr')">📷 Escanear QR</button>
+          <button class="btn" onclick="Employee.openScan('nfc')">📶 Leer NFC</button>
+        </div>
+        <button class="btn btn-ghost" style="width:100%;margin-top:10px" onclick="Employee.manualEntry()">⌨️ Ingresar código manualmente</button>
+      </div>`;
+    }
+
+    html += `<div class="section-title" style="font-size:14px">📋 Mi historial reciente</div><div class="card">`;
+    const myHistory = DB.cleaningSessions.filter(s=>s.employeeId===emp.id && s.status==='FINALIZADA').sort((a,b)=>new Date(b.endTime)-new Date(a.endTime)).slice(0,6);
+    if(myHistory.length){
+      myHistory.forEach(s=>{
+        const r = roomById(s.roomId); const ts = timeStatus(s.diffSeconds, DB.settings);
+        html += `<div class="emp-history-item"><span>Hab. ${r?r.number:'-'} · ${fmtDate(s.endTime)}</span><span class="badge ${ts.cls}">${ts.dot} ${Timer.format(s.durationSeconds)}</span></div>`;
+      });
+    } else { html += `<div class="muted small">Aún no has finalizado limpiezas.</div>`; }
+    html += `</div>`;
+
+    document.getElementById('employeeScreen').innerHTML = html;
+
+    if(active){
+      Timer.start(()=>Employee.updateTimerDisplay(active));
+    }
+  },
+  activeCard(session){
+    const room = roomById(session.roomId);
+    return `<div class="card status-card glow">
+      <div class="status-room">Habitación<b>${room?room.number:'-'}</b></div>
+      <div class="badge b-violet" style="margin-top:10px">🟣 LIMPIANDO</div>
+      <div class="timer-display" id="empTimer">00:00:00</div>
+      <div class="timer-sub">Tiempo estimado: ${Timer.format(session.estimatedMinutes*60)}</div>
+      <div class="progress-outer"><div class="progress-inner" id="empProgress" style="width:0%"></div></div>
+      <div id="empDiffLabel" class="small muted"></div>
+      <div class="emp-actions">
+        <button class="btn" onclick="Employee.reportIncident('${session.id}')">⚠️ Reportar novedad</button>
+        <button class="btn btn-primary btn-lg" onclick="Employee.finishCleaning('${session.id}')">✅ FINALIZAR LIMPIEZA</button>
+      </div>
+    </div>`;
+  },
+  updateTimerDisplay(session){
+    const elapsed = Timer.elapsedSeconds(session.startTime);
+    const el = document.getElementById('empTimer'); if(el) el.textContent = Timer.format(elapsed);
+    const pct = Math.min(100, Math.round((elapsed/(session.estimatedMinutes*60))*100));
+    const bar = document.getElementById('empProgress'); if(bar) bar.style.width = pct+'%';
+    const diffMin = Math.round((elapsed/60) - session.estimatedMinutes);
+    const lab = document.getElementById('empDiffLabel');
+    if(lab){
+      if(pct>=100) lab.innerHTML = '<span class="badge b-red">⏰ TIEMPO SUPERADO</span>';
+      else lab.textContent = pct+'% del tiempo estimado utilizado';
+    }
+  },
+  openScan(mode){
+    const html = `<h2>${mode==='qr'?'Escanear QR':'Leer NFC'}</h2>
+      <div id="scanArea"></div>
+      <button class="btn btn-ghost" style="width:100%;margin-top:10px" onclick="Employee.manualEntry(true)">⌨️ Ingresar código manualmente</button>`;
+    openModal(html);
+    if(mode==='qr'){
+      document.getElementById('scanArea').innerHTML = `<div class="qr-video-wrap"><video id="qrVideo" playsinline muted></video><div class="qr-frame"></div></div><div class="small muted center">Apunte la cámara al código QR de la habitación</div>`;
+      QR.open(document.getElementById('qrVideo'), (value)=>{ QR.close(); closeModal(); Employee.handleRoomCode(value); }).then(ok=>{
+        if(!ok) document.getElementById('scanArea').innerHTML = `<div class="scan-empty">Cámara no disponible. Introduzca manualmente el código de habitación.<br><br>
+          <input id="manualCode" placeholder="ROOM-305" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--panel-b);background:rgba(255,255,255,.05);color:#fff;margin-top:8px">
+          <button class="btn btn-primary" style="width:100%;margin-top:10px" onclick="Employee.handleRoomCode(document.getElementById('manualCode').value)">Buscar</button></div>`;
+      });
+    } else {
+      document.getElementById('scanArea').innerHTML = `<div class="scan-empty">Acerque el teléfono al tag NFC de la habitación...</div>`;
+      NFC.read((value)=>{ if(value){ closeModal(); Employee.handleRoomCode(value); } });
+    }
+  },
+  manualEntry(fromModal){
+    if(fromModal){
+      document.getElementById('scanArea').innerHTML = `<input id="manualCode2" placeholder="ROOM-305" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--panel-b);background:rgba(255,255,255,.05);color:#fff">
+        <button class="btn btn-primary" style="width:100%;margin-top:10px" onclick="Employee.handleRoomCode(document.getElementById('manualCode2').value)">Buscar</button>`;
+      QR.close();
+      return;
+    }
+    const html = `<h2>Ingresar código de habitación</h2>
+      <div class="field"><label>Código (ej. ROOM-305)</label><input id="manualCode3" placeholder="ROOM-305"></div>
+      <button class="btn btn-primary" style="width:100%" onclick="Employee.handleRoomCode(document.getElementById('manualCode3').value)">Buscar</button>`;
+    openModal(html);
+  },
+  handleRoomCode(code){
+    if(!code){ toast('Código vacío','err'); return; }
+    code = code.trim().toUpperCase();
+    const room = DB.rooms.find(r=>r.qr.toUpperCase()===code || r.nfc.toUpperCase()===code || String(r.number)===code.replace(/\D/g,''));
+    if(!room){ closeModal(); toast('Habitación no encontrada para el código: '+code,'err'); return; }
+    Employee.showRoomFound(room);
+  },
+  showRoomFound(room){
+    const sess = Auth.current();
+    const emp = DB.employees.find(e=>e.id===sess.employeeId);
+    const myActive = findActiveSessionByEmployee(emp.id);
+    if(myActive){
+      const r2 = roomById(myActive.roomId);
+      openModal(`<h2>Limpieza activa</h2><p>Ya tienes una limpieza activa en la habitación ${r2?r2.number:'-'}. Finaliza esa limpieza antes de iniciar otra.</p>
+        <button class="btn btn-primary" style="width:100%;margin-top:10px" onclick="closeModal();Employee.render()">Entendido</button>`);
+      return;
+    }
+    const busy = findActiveSessionByRoom(room.id);
+    if(busy){
+      const busyEmp = empById(busy.employeeId);
+      openModal(`<h2>🔴 Habitación en limpieza</h2>
+        <div class="kv"><b>Colaborador</b><span>${busyEmp?busyEmp.name:'-'}</span></div>
+        <div class="kv"><b>Inicio</b><span>${fmtTime(busy.startTime)}</span></div>
+        <p class="small muted" style="margin-top:10px">Esta habitación ya está siendo limpiada por otra persona.</p>`);
+      return;
+    }
+    openModal(`<h2>Habitación encontrada</h2>
+      <div class="kv"><b>Habitación</b><span>${room.number}</span></div>
+      <div class="kv"><b>Piso</b><span>${room.floor}</span></div>
+      <div class="kv"><b>Tipo</b><span>${room.category}</span></div>
+      <div class="kv"><b>Tiempo estimado</b><span>${room.estimatedMinutes} minutos</span></div>
+      <button class="btn btn-primary btn-lg" style="margin-top:16px" onclick="Employee.startCleaning('${room.id}')">INICIAR LIMPIEZA</button>`);
+  },
+  async startCleaning(roomId){
+    const sess = Auth.current();
+    const emp = DB.employees.find(e=>e.id===sess.employeeId);
+    const room = roomById(roomId);
+    closeModal();
+    toast('Obteniendo ubicación GPS...','warn');
+    const gps = await GPS.capture();
+    if(!gps && DB.settings.gpsRequired){ toast('⚠️ No fue posible obtener la ubicación.','warn'); }
+    const session = {
+      id: generateId('SES'), roomId, employeeId: emp.id, startTime: new Date().toISOString(), endTime:null,
+      estimatedMinutes: room.estimatedMinutes, gpsStart: gps, gpsEnd:null, status:'EN_LIMPIEZA', durationSeconds:0, diffSeconds:0
+    };
+    DB.cleaningSessions.push(session);
+    room.status = 'EN LIMPIEZA';
+    logHistory(sess.username,'INICIO LIMPIEZA', `Habitación ${room.number} · ${emp.name}`);
+    saveData();
+    Cloud.upsert('cleaning_sessions', session);
+    Cloud.upsert('rooms', room);
+    toast(gps? '📍 Ubicación capturada' : 'Limpieza iniciada','ok');
+    Employee.render();
+  },
+  reportIncident(sessionId){
+    const session = DB.cleaningSessions.find(s=>s.id===sessionId);
+    const room = roomById(session.roomId);
+    const types = ['Daño','Mantenimiento','Objeto olvidado','Suciedad especial','Falta de elemento','Problema de baño','Problema eléctrico','Problema de aire acondicionado','Otro'];
+    const html = `<h2>Reportar novedad · Hab. ${room.number}</h2>
+      <div class="field"><label>Tipo de novedad</label><select id="incType">${types.map(t=>`<option>${t}</option>`).join('')}</select></div>
+      <div class="field"><label>Descripción</label><textarea id="incDesc" placeholder="Describa la novedad..."></textarea></div>
+      <div class="field"><label>Fotografía</label>
+        <input id="incPhoto" type="file" accept="image/*" capture="environment">
+        <img id="incPreview" class="photo-preview hidden">
+      </div>
+      <button class="btn btn-primary btn-lg" onclick="Employee.saveIncident('${sessionId}')">Guardar novedad</button>`;
+    openModal(html);
+    document.getElementById('incPhoto').addEventListener('change', (e)=>{
+      const f = e.target.files[0]; if(!f) return;
+      const reader = new FileReader();
+      reader.onload = ()=>{ const img = document.getElementById('incPreview'); img.src = reader.result; img.classList.remove('hidden'); };
+      reader.readAsDataURL(f);
+    });
+  },
+  async saveIncident(sessionId){
+    const session = DB.cleaningSessions.find(s=>s.id===sessionId);
+    const type = document.getElementById('incType').value;
+    const description = document.getElementById('incDesc').value;
+    const photoInput = document.getElementById('incPhoto');
+    if(DB.settings.photoRequired && !(photoInput.files && photoInput.files[0])){
+      toast('La fotografía es obligatoria para reportar una novedad','err'); return;
+    }
+    const gps = await GPS.capture();
+    const finish = (photo)=>{
+      const incident = { id:generateId('INC'), sessionId, roomId:session.roomId, employeeId:session.employeeId,
+        type, description, photo: photo||null, gps, timestamp:new Date().toISOString() };
+      DB.incidents.push(incident);
+      logHistory(Auth.current().username,'NOVEDAD','Tipo: '+type+' · Hab. '+roomById(session.roomId).number);
+      saveData(); Cloud.upsert('incidents', incident); closeModal(); toast('Novedad registrada','ok'); Employee.render();
+    };
+    if(photoInput.files && photoInput.files[0]){
+      const reader = new FileReader(); reader.onload = ()=>finish(reader.result); reader.readAsDataURL(photoInput.files[0]);
+    } else finish(null);
+  },
+  async finishCleaning(sessionId){
+    const session = DB.cleaningSessions.find(s=>s.id===sessionId);
+    const room = roomById(session.roomId);
+    toast('Finalizando y capturando ubicación...','warn');
+    const gps = await GPS.capture();
+    const endTime = new Date();
+    const durationSeconds = Math.round((endTime - new Date(session.startTime))/1000);
+    const diffSeconds = durationSeconds - (session.estimatedMinutes*60);
+    session.endTime = endTime.toISOString();
+    session.gpsEnd = gps;
+    session.durationSeconds = durationSeconds;
+    session.diffSeconds = diffSeconds;
+    session.status = 'FINALIZADA';
+    room.status = 'LIMPIA';
+    logHistory(Auth.current().username,'FIN LIMPIEZA', `Habitación ${room.number} · Duración ${Timer.format(durationSeconds)}`);
+    saveData();
+    Cloud.upsert('cleaning_sessions', session);
+    Cloud.upsert('rooms', room);
+    Timer.stop();
+    const ts = timeStatus(diffSeconds, DB.settings);
+    toast(`Limpieza finalizada ${ts.dot} ${Math.round(Math.abs(diffSeconds)/60)} min ${diffSeconds<=0?'por debajo':'por encima'}`, diffSeconds>DB.settings.redLimit*60?'err':'ok');
+    Employee.render();
+  }
+};
+
+/* ==================== INIT ==================== */
+window.addEventListener('DOMContentLoaded', App.init);
+document.addEventListener('keydown', e=>{ if(e.key==='Enter' && document.getElementById('loginScreen').style.display!=='none'){ App.login(); } });
+
+/* ==================== PWA: registro del Service Worker ====================
+   Permite instalar la app (Agregar a pantalla de inicio / Instalar aplicación)
+   y que el "app shell" quede disponible sin conexión. */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(e=>console.warn('No fue posible registrar el Service Worker', e));
+  });
+}
+</script>
+</body>
+</html>
