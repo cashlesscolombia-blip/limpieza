@@ -1,7 +1,7 @@
 {
   "name": "CASHLESS COLOMBIA · Housekeeping Control",
   "short_name": "CC Housekeeping",
-  "description": "Control de limpieza hotelera: habitaciones, colaboradores, QR/NFC y reportes.",
+  "description": "Control de limpieza hotelera: habitaciones, colaboradores, verificación por supervisor, QR/NFC y reportes.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
